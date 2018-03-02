@@ -7,7 +7,7 @@ public class SuperFighter : ModuleRules
 	public SuperFighter(TargetInfo Target)
 	{
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore" ,
-            "Networking", "Sockets" });
+            "Networking", "Sockets", "UMG", "Slate", "SlateCore" });
 
         PrivateDependencyModuleNames.AddRange(new string[] {  });
 
