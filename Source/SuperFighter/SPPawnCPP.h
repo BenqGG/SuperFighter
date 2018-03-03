@@ -66,6 +66,12 @@ struct FSPWorkData {
 
 		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		int AirJumped;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		int CurrentJumpType;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FTimerHandle JumpTimer;
 };
 
 USTRUCT(BlueprintType)
@@ -152,6 +158,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void Jump();
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void StopJump();
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void Hit(float forceX, float forcey);

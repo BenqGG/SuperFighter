@@ -2,20 +2,20 @@
 
 #pragma once
 
-#include "GameFramework/GameModeBase.h"
-#include "SuperFighterGameModeBase.generated.h"
+#include "GameFramework/PlayerController.h"
+#include "SPPlayerControllerCPP.generated.h"
 
 /**
  * 
  */
 UCLASS()
-class SUPERFIGHTER_API ASuperFighterGameModeBase : public AGameModeBase
+class SUPERFIGHTER_API ASPPlayerControllerCPP : public APlayerController
 {
 	GENERATED_BODY()
 	
 public:
 	// Sets default values for this actor's properties
-	ASuperFighterGameModeBase();
+	ASPPlayerControllerCPP();
 
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
