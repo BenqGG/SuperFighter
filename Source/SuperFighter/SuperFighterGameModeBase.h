@@ -2,7 +2,10 @@
 
 #pragma once
 
+#include "SPPlayerControllerCPP.h"
 #include "GameFramework/GameModeBase.h"
+#include "Net/UnrealNetwork.h"
+#include  "Kismet/GameplayStatics.h"
 #include "SuperFighterGameModeBase.generated.h"
 
 /**
@@ -22,4 +25,7 @@ public:
 
 	// Called every frame
 	virtual void Tick(float DeltaSeconds) override;
+
+	// Overriding the PostLogin function
+	virtual void PostLogin(APlayerController* NewPlayer) override;
 };

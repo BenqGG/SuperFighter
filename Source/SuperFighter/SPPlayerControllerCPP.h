@@ -2,7 +2,10 @@
 
 #pragma once
 
+#include "SPPawnCPP.h"
 #include "GameFramework/PlayerController.h"
+#include "Net/UnrealNetwork.h"
+#include "Math/UnrealMathUtility.h"
 #include "SPPlayerControllerCPP.generated.h"
 
 /**
@@ -22,4 +25,13 @@ public:
 
 	// Called every frame
 	virtual void Tick(float DeltaSeconds) override;
+
+	UFUNCTION(Server, reliable, WithValidation)
+	void Server_SpawnPawn();
+
+	UFUNCTION(Client, reliable)
+		void Client_PostLogin();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SPPC)
+		APawn* Native_SpawnSPPawnBP(FVector Location);
 };

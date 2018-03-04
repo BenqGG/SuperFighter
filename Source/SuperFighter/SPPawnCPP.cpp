@@ -27,6 +27,7 @@ ASPPawnCPP::ASPPawnCPP()
 	StaticAttributes.WallJumpYModifier = 1.5f;
 
 	WorkData.AirJumped = 0;
+	WorkData.IsLocal = false;
 }
 
 // Called when the game starts or when spawned
@@ -45,12 +46,26 @@ void ASPPawnCPP::Tick(float DeltaTime)
 	ApplyForces(DeltaTime);
 	Friction(DeltaTime);
 	CalculateMovement();
+
+	if (WorkData.IsLocal) {
+
+	}
 }
 
 // Called to bind functionality to input
 void ASPPawnCPP::SetupPlayerInputComponent(class UInputComponent* InputComponent)
 {
 	Super::SetupPlayerInputComponent(InputComponent);
+}
+
+void ASPPawnCPP::CallEndViewTarget()
+{
+	if (HasAuthority()) {
+		if (IsLocal()) {
+			APlayerController* LocalPlayer = UGameplayStatics::GetPlayerController(this, 0);
+			LocalPlayer->SetViewTarget(this);		
+		}
+	}
 }
 
 void ASPPawnCPP::GravityDelegeteBind(const float Pull)

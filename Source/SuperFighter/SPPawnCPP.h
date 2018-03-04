@@ -64,14 +64,14 @@ struct FSPWorkData {
 
 	GENERATED_BODY()
 
-		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		int AirJumped;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
-		int CurrentJumpType;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		FTimerHandle JumpTimer;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		bool IsLocal;
 };
 
 USTRUCT(BlueprintType)
@@ -170,4 +170,12 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
 		bool GroundNextToFeet(bool right) const;
+
+	void SetAsLocal() { WorkData.IsLocal = true; }
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+	bool IsLocal() { return WorkData.IsLocal;  }
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+	void CallEndViewTarget();
 };

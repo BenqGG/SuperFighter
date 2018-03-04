@@ -10,13 +10,24 @@ ASuperFighterGameModeBase::ASuperFighterGameModeBase()
 }
 
 void ASuperFighterGameModeBase::BeginPlay()
-{
+{	
 	Super::BeginPlay();
 }
 
 void ASuperFighterGameModeBase::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+}
+
+void ASuperFighterGameModeBase::PostLogin(APlayerController * NewPlayer)
+{
+	Super::PostLogin(NewPlayer);
+	ASPPlayerControllerCPP *CastedNewPlayer = Cast<ASPPlayerControllerCPP>(NewPlayer);
+	
+	if (IsValid(CastedNewPlayer))
+	{
+		CastedNewPlayer->Client_PostLogin();
+	}
 }
 
 
