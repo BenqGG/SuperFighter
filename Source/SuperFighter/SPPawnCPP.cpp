@@ -43,12 +43,10 @@ void ASPPawnCPP::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	ApplyForces(DeltaTime);
-	Friction(DeltaTime);
-	CalculateMovement();
-
-	if (WorkData.IsLocal) {
-
+	if (HasAuthority()) {
+		ApplyForces(DeltaTime);
+		Friction(DeltaTime);
+		CalculateMovement();
 	}
 }
 
@@ -68,60 +66,146 @@ void ASPPawnCPP::CallEndViewTarget()
 	}
 }
 
+void ASPPawnCPP::Local_Move(float AxisX)
+{
+	if (AxisX == 0 && (States.MOVE_LEFT || States.MOVE_RIGHT)) {
+		Server_Move(AxisX);
+	}
+	else if (AxisX > 0.0f && AxisX > 0.2f && !States.MOVE_RIGHT) {
+		Server_Move(AxisX);
+	}
+	else if (AxisX < 0.0f && AxisX < -0.2f && !States.MOVE_LEFT) {
+		Server_Move(AxisX);
+	}
+}
+
+void ASPPawnCPP::RepNot_UpdatePosition()
+{
+	SetActorLocation(CurrentPosition, false);
+}
+
+void ASPPawnCPP::Server_StopJump_Implementation()
+{
+	StopJump();
+}
+
+bool ASPPawnCPP::Server_StopJump_Validate()
+{
+	return true;
+}
+
+void ASPPawnCPP::Server_Jump_Implementation()
+{	
+	Jump();
+}
+
+bool ASPPawnCPP::Server_Jump_Validate()
+{
+	return true;
+}
+
+void ASPPawnCPP::Server_Move_Implementation(float AxisX)
+{
+	if (AxisX >= -1 && AxisX <= 1) {
+		if (AxisX == 0 && (States.MOVE_LEFT || States.MOVE_RIGHT)) {
+			StopMove();
+		}
+		else if (AxisX > 0.0f && AxisX > 0.2f && !States.MOVE_RIGHT) {
+			Move(true);
+		}
+		else if (AxisX < 0.0f && AxisX < -0.2f && !States.MOVE_LEFT) {
+			Move(false);
+		}
+	}
+}
+
+bool ASPPawnCPP::Server_Move_Validate(float AxisX)
+{
+	return true;
+}
+
+void ASPPawnCPP::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const {
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	// Here we list the variables we want to replicate + a condition if wanted
+	DOREPLIFETIME(ASPPawnCPP, CurrentPosition);
+	DOREPLIFETIME(ASPPawnCPP, States);
+}
+
 void ASPPawnCPP::GravityDelegeteBind(const float Pull)
 {
-	//Pull means how much you should lower y force this frame, pull is calculated on gravity object
-	Forces.Y -= Pull;
+	if (HasAuthority()) {
+		//Pull means how much you should lower y force this frame, pull is calculated on gravity object
+		Forces.Y -= Pull;
+	}
 }
 
 void ASPPawnCPP::Jump()
 {	
-	if (GroundUnderFeet()) {
-		States.JUMP = true;
-		GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
-	}
-	else if (GroundNextToFeet(true)) {
-		States.JUMP_RIGHT_WALL = true;
-		GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
-	}
-	else if (GroundNextToFeet(false)) {
-		States.JUMP_LEFT_WALL = true;
-		GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
-	}
-	else if (WorkData.AirJumped < Attributes.AirJumpAmount) {
-		WorkData.AirJumped++;
-		if (States.MOVE_LEFT) {
-			States.JUMP_RIGHT_WALL = true;
-			GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
-		}
-		else if (States.MOVE_RIGHT) {
-			States.JUMP_LEFT_WALL = true;
-			GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
-		}
-		else {
+	if (HasAuthority()) {
+		if (GroundUnderFeet()) {
 			States.JUMP = true;
 			GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
 		}
+		else if (GroundNextToFeet(true)) {
+			States.JUMP_RIGHT_WALL = true;
+			GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
+		}
+		else if (GroundNextToFeet(false)) {
+			States.JUMP_LEFT_WALL = true;
+			GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
+		}
+		else if (WorkData.AirJumped < Attributes.AirJumpAmount) {
+			WorkData.AirJumped++;
+			if (States.MOVE_LEFT) {
+				States.JUMP_RIGHT_WALL = true;
+				GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
+			}
+			else if (States.MOVE_RIGHT) {
+				States.JUMP_LEFT_WALL = true;
+				GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
+			}
+			else {
+				States.JUMP = true;
+				GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
+			}
+		}
 	}
+	else {
+		if (WorkData.AirJumped < Attributes.AirJumpAmount || GroundUnderFeet() || GroundNextToFeet(true) || GroundNextToFeet(false) ) {
+			Server_Jump();
+		}
+	}
+		
 }
 
 void ASPPawnCPP::StopJump()
 {
-	if (States.JUMP) {
-		States.JUMP = false;
+	if (HasAuthority()) {
+		if (States.JUMP) {
+			States.JUMP = false;
+			
+		}
+		if (States.JUMP_LEFT_WALL) {
+			States.JUMP_LEFT_WALL = false;
+		}
+		if (States.JUMP_RIGHT_WALL) {
+			States.JUMP_RIGHT_WALL = false;
+		}
+		GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
 	}
-	if (States.JUMP_LEFT_WALL) {
-		States.JUMP_LEFT_WALL = false;
-	}
-	if (States.JUMP_RIGHT_WALL) {
-		States.JUMP_RIGHT_WALL = false;
+	else {
+		if (States.JUMP || States.JUMP_LEFT_WALL || States.JUMP_RIGHT_WALL) {
+			Server_StopJump();
+		}
 	}
 }
 
 void ASPPawnCPP::Hit(float forceX, float forceY)
 {
-	Forces.X = forceX;
-	Forces.Y = forceY;
+	if (HasAuthority()) {
+		Forces.X = forceX;
+		Forces.Y = forceY;
+	}
 }
 
 bool ASPPawnCPP::GroundNextToFeet_Implementation(bool right) const
@@ -146,8 +230,8 @@ ChangeAnimation(FSPAnimationDetails details)
 
 void ASPPawnCPP::Friction(float DeltaTime)
 {
-
-	if (Forces.X > 0.0f) {
+	if(HasAuthority()){
+		if (Forces.X > 0.0f) {
 		if (GroundUnderFeet()) {
 			Forces.X -= ValuePerSecond(Attributes.Friction, DeltaTime);
 		}
@@ -158,7 +242,7 @@ void ASPPawnCPP::Friction(float DeltaTime)
 			Forces.X = 0.0f;
 		}
 	}
-	else if (Forces.X < 0.0f) {
+		else if (Forces.X < 0.0f) {
 		if (GroundUnderFeet()) {
 			Forces.X += ValuePerSecond(Attributes.Friction, DeltaTime);
 		}
@@ -169,100 +253,104 @@ void ASPPawnCPP::Friction(float DeltaTime)
 			Forces.X = 0.0f;
 		}
 	}
+	}
 }
 
 void ASPPawnCPP::ApplyForces(float DeltaTime)
 {
 	FVector current_location;
-
-
-
-	if (Forces.X != 0.0f) {
-		current_location = GetActorLocation();
-		current_location.X += Forces.X * (DeltaTime / 1.0f);
-		if (!SetActorLocation(current_location, true, nullptr)) {
-			Forces.X = 0.0f;
-		}
-
-	}
-	if (Forces.Y != 0.0f) {
-		current_location = GetActorLocation();
-		current_location.Z += Forces.Y * (DeltaTime / 1.0f);
-		if (!SetActorLocation(current_location, true, nullptr)) {
-			if (Forces.Y < 0) {
-				WorkData.AirJumped = 0;
+	if (HasAuthority()) {
+		if (Forces.X != 0.0f) {
+			current_location = GetActorLocation();
+			current_location.X += Forces.X * (DeltaTime / 1.0f);
+			if (!SetActorLocation(current_location, true, nullptr)) {
+				Forces.X = 0.0f;
 			}
-			Forces.Y = 0.0f;
 		}
+		if (Forces.Y != 0.0f) {
+			current_location = GetActorLocation();
+			current_location.Z += Forces.Y * (DeltaTime / 1.0f);
+			if (!SetActorLocation(current_location, true, nullptr)) {
+				if (Forces.Y < 0) {
+					WorkData.AirJumped = 0;
+				}
+				Forces.Y = 0.0f;
+			}
+		}
+		CurrentPosition = GetActorLocation();
 	}
 }
 
 void ASPPawnCPP::CalculateMovement()
 {
-	if (States.MOVE_LEFT) {
-		if (GroundUnderFeet()) {
-			if (Forces.X == 0) {
-				Forces.X -= Attributes.MoveSpeed * StaticAttributes.MovementScale;
+	if (HasAuthority()) {
+			
+		if (States.MOVE_LEFT) {
+			if (GroundUnderFeet()) {
+				if (Forces.X == 0) {
+					Forces.X -= Attributes.MoveSpeed * StaticAttributes.MovementScale;
+				}
+				else if (Forces.X < 0 && Forces.X >(-Attributes.MoveSpeed * StaticAttributes.MovementScale)) {
+					Forces.X = -Attributes.MoveSpeed * StaticAttributes.MovementScale;
+				}
+				else if (Forces.X > 0 && Forces.X < (Attributes.MoveSpeed * StaticAttributes.MovementScale)) {
+					Forces.X = -Attributes.MoveSpeed * StaticAttributes.MovementScale;
+				}
 			}
-			else if (Forces.X < 0 && Forces.X >(-Attributes.MoveSpeed * StaticAttributes.MovementScale)) {
-				Forces.X = -Attributes.MoveSpeed * StaticAttributes.MovementScale;
-			}
-			else if (Forces.X > 0 && Forces.X < (Attributes.MoveSpeed * StaticAttributes.MovementScale)) {
-				Forces.X = -Attributes.MoveSpeed * StaticAttributes.MovementScale;
-			}
-		}
-		else {
-			if (Forces.X == 0) {
-				Forces.X -= Attributes.MoveSpeed * StaticAttributes.AirMovementScale;
-			}
-			else if (Forces.X < 0 && Forces.X >(-Attributes.MoveSpeed * StaticAttributes.AirMovementScale)) {
-				Forces.X = -Attributes.MoveSpeed * StaticAttributes.AirMovementScale;
-			}
-			else if (Forces.X > 0 && Forces.X < (Attributes.MoveSpeed * StaticAttributes.AirMovementScale)) {
-				Forces.X = -Attributes.MoveSpeed * StaticAttributes.AirMovementScale;
-			}
-		}
-	}
-	else if (States.MOVE_RIGHT) {
-		if (GroundUnderFeet()) {
-			if (Forces.X == 0) {
-				Forces.X = Attributes.MoveSpeed * StaticAttributes.MovementScale;
-			}
-			else if (Forces.X > 0 && Forces.X < (Attributes.MoveSpeed * StaticAttributes.MovementScale)) {
-				Forces.X = Attributes.MoveSpeed * StaticAttributes.MovementScale;
-			}
-			else if (Forces.X < 0 && Forces.X >(-Attributes.MoveSpeed * StaticAttributes.MovementScale)) {
-				Forces.X = Attributes.MoveSpeed * StaticAttributes.MovementScale;
+			else {
+				if (Forces.X == 0) {
+					Forces.X -= Attributes.MoveSpeed * StaticAttributes.AirMovementScale;
+				}
+				else if (Forces.X < 0 && Forces.X >(-Attributes.MoveSpeed * StaticAttributes.AirMovementScale)) {
+					Forces.X = -Attributes.MoveSpeed * StaticAttributes.AirMovementScale;
+				}
+				else if (Forces.X > 0 && Forces.X < (Attributes.MoveSpeed * StaticAttributes.AirMovementScale)) {
+					Forces.X = -Attributes.MoveSpeed * StaticAttributes.AirMovementScale;
+				}
 			}
 		}
-		else {
-			if (Forces.X == 0) {
-				Forces.X = Attributes.MoveSpeed * StaticAttributes.AirMovementScale;
+		else if (States.MOVE_RIGHT) {
+			if (GroundUnderFeet()) {
+				if (Forces.X == 0) {
+					Forces.X = Attributes.MoveSpeed * StaticAttributes.MovementScale;
+				}
+				else if (Forces.X > 0 && Forces.X < (Attributes.MoveSpeed * StaticAttributes.MovementScale)) {
+					Forces.X = Attributes.MoveSpeed * StaticAttributes.MovementScale;
+				}
+				else if (Forces.X < 0 && Forces.X >(-Attributes.MoveSpeed * StaticAttributes.MovementScale)) {
+					Forces.X = Attributes.MoveSpeed * StaticAttributes.MovementScale;
+				}
 			}
-			else if (Forces.X > 0 && Forces.X < (Attributes.MoveSpeed * StaticAttributes.AirMovementScale)) {
-				Forces.X = Attributes.MoveSpeed * StaticAttributes.AirMovementScale;
-			}
-			else if (Forces.X < 0 && Forces.X >(-Attributes.MoveSpeed * StaticAttributes.AirMovementScale)) {
-				Forces.X = Attributes.MoveSpeed * StaticAttributes.AirMovementScale;
+			else {
+				if (Forces.X == 0) {
+					Forces.X = Attributes.MoveSpeed * StaticAttributes.AirMovementScale;
+				}
+				else if (Forces.X > 0 && Forces.X < (Attributes.MoveSpeed * StaticAttributes.AirMovementScale)) {
+					Forces.X = Attributes.MoveSpeed * StaticAttributes.AirMovementScale;
+				}
+				else if (Forces.X < 0 && Forces.X >(-Attributes.MoveSpeed * StaticAttributes.AirMovementScale)) {
+					Forces.X = Attributes.MoveSpeed * StaticAttributes.AirMovementScale;
+				}
 			}
 		}
-	}
 
-	if (States.JUMP) {
-		Forces.Y = Attributes.JumpPower;
-	}
-	else if (States.JUMP_LEFT_WALL) {
-
-		Forces.Y = Attributes.JumpPower / StaticAttributes.WallJumpYModifier;
-		if (Forces.X < Attributes.JumpPower / StaticAttributes.WallJumpXModifier) {
-			Forces.X = Attributes.JumpPower / StaticAttributes.WallJumpXModifier;
+		if (States.JUMP) {
+			Forces.Y = Attributes.JumpPower;
+			GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, TEXT("FOUND JUMP"));
 		}
-	}
-	else if (States.JUMP_RIGHT_WALL) {
-	
-		Forces.Y = Attributes.JumpPower / StaticAttributes.WallJumpYModifier;
-		if (Forces.X > -Attributes.JumpPower / StaticAttributes.WallJumpXModifier) {
-			Forces.X = -Attributes.JumpPower / StaticAttributes.WallJumpXModifier;
+		else if (States.JUMP_LEFT_WALL) {
+
+			Forces.Y = Attributes.JumpPower / StaticAttributes.WallJumpYModifier;
+			if (Forces.X < Attributes.JumpPower / StaticAttributes.WallJumpXModifier) {
+				Forces.X = Attributes.JumpPower / StaticAttributes.WallJumpXModifier;
+			}
+		}
+		else if (States.JUMP_RIGHT_WALL) {
+
+			Forces.Y = Attributes.JumpPower / StaticAttributes.WallJumpYModifier;
+			if (Forces.X > -Attributes.JumpPower / StaticAttributes.WallJumpXModifier) {
+				Forces.X = -Attributes.JumpPower / StaticAttributes.WallJumpXModifier;
+			}
 		}
 	}
 }
@@ -279,20 +367,24 @@ void ASPPawnCPP::SetAttributes(FSPPawnAttributes new_attributes)
 
 void ASPPawnCPP::Move(bool right)
 {
-	if (right) {
-		States.MOVE_LEFT = false;
-		States.MOVE_RIGHT = true;
-	}
-	else {
-		States.MOVE_LEFT = true;
-		States.MOVE_RIGHT = false;
+	if (HasAuthority()) {
+		if (right) {
+			States.MOVE_LEFT = false;
+			States.MOVE_RIGHT = true;
+		}
+		else {
+			States.MOVE_LEFT = true;
+			States.MOVE_RIGHT = false;
+		}
 	}
 }
 
 void ASPPawnCPP::StopMove()
 {
-	States.MOVE_LEFT = false;
-	States.MOVE_RIGHT = false;
+	if (HasAuthority()) {
+		States.MOVE_LEFT = false;
+		States.MOVE_RIGHT = false;
+	}
 }
 
 

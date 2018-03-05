@@ -67,7 +67,6 @@ struct FSPWorkData {
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		int AirJumped;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		FTimerHandle JumpTimer;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
@@ -104,12 +103,14 @@ protected:
 	FVector2D Forces;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		FSPPawnAttributes Attributes;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		FSPPawnStates States;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		FSPStaticPawnAttributes StaticAttributes;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		FSPWorkData WorkData;
+	UPROPERTY(ReplicatedUsing = RepNot_UpdatePosition, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FVector CurrentPosition;
 
 	//Apply Forces working on player
 	void ApplyForces(float DeltaTime);
@@ -178,4 +179,21 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 	void CallEndViewTarget();
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void Local_Move(float AxisX);
+
+	UFUNCTION()
+	void RepNot_UpdatePosition();
+
+	UFUNCTION(Server, unreliable, WithValidation, BlueprintCallable, Category = SuperFighter)
+		void Server_Move(float AxisX);
+
+	UFUNCTION(Server, reliable, WithValidation)
+		//Server Will Only detect the jump that clients asks for
+		void Server_Jump();
+
+	UFUNCTION(Server, reliable, WithValidation)
+		//Server Will Only detect the jump that clients asks for
+		void Server_StopJump();
 };
