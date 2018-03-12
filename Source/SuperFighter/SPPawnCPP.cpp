@@ -28,6 +28,7 @@ ASPPawnCPP::ASPPawnCPP()
 
 	WorkData.AirJumped = 0;
 	WorkData.IsLocal = false;
+	WorkData.FacingRight = true;
 }
 
 // Called when the game starts or when spawned
@@ -46,6 +47,7 @@ void ASPPawnCPP::Tick(float DeltaTime)
 	if (HasAuthority()) {
 		ApplyForces(DeltaTime);
 		Friction(DeltaTime);
+		Gravity(DeltaTime);
 		CalculateMovement();
 	}
 }
@@ -82,6 +84,99 @@ void ASPPawnCPP::Local_Move(float AxisX)
 void ASPPawnCPP::RepNot_UpdatePosition()
 {
 	SetActorLocation(CurrentPosition, false);
+}
+
+void ASPPawnCPP::HitPunch()
+{
+	if (HasAuthority()) {
+
+		FSPHitBoxDetails HBDetails;
+		FVector self_position;
+		FVector self_bounds;
+		FVector temp;
+
+
+		HBDetails.ExistTime = 0.1f;
+		HBDetails.FriendlyFire = true;
+		HBDetails.HitStun = 0.0f;
+		HBDetails.MultiHit = false;
+		HBDetails.Owner = this;
+
+		HitPosition(HBDetails.Position, HBDetails.Force);
+		SpawnHitBox(HBDetails);
+		
+	}
+	else {
+		Server_HitPunch();
+	}
+}
+
+void ASPPawnCPP::HitPosition(FVector& Position, FVector& Force)
+{
+	FVector2D axis_position = AxisPosition();
+	FVector self_position, self_bounds;
+	GetActorBounds(true, self_position, self_bounds);
+
+	Position.Y = self_bounds.X; //Spehere radius
+	Force.Y = 0.0f;
+	if (axis_position.X > 1 || axis_position.X < -1) axis_position.X = 0.0f;
+	if (axis_position.Y > 1 || axis_position.X < -1) axis_position.Y = 0.0f;
+
+	if (axis_position.X == 0 && axis_position.Y == 0) {
+
+		Position.X = self_position.X;
+		Position.Z = self_position.Z;
+		Force.Z = 0.0f;
+		if (WorkData.FacingRight) {
+			Position.X += self_bounds.X ;
+			Force.X = 1000.0f;
+		}
+		else {
+			Position.X -= self_bounds.X ;
+			Force.X = -1000.0f;
+		}
+
+		
+	}
+	else{
+		FVector2D temp_axis = axis_position;
+		if (temp_axis.X < 0) temp_axis.X *= -1.0f;
+		if (temp_axis.Y < 0) temp_axis.Y *= -1.0f;
+		Force.X = 1000.0f * axis_position.X;
+		Force.Z = 1000.0f * axis_position.Y;
+
+		if (temp_axis.X > temp_axis.Y) {
+
+			Position.X = self_position.X;
+			Position.Z = self_position.Z;
+			axis_position.X > 0 ? Position.X += self_bounds.X : Position.X -= self_bounds.X;
+		}
+		else {
+			Position.X = self_position.X;
+			Position.Z = self_position.Z;
+			axis_position.Y > 0 ? Position.Z += self_bounds.Z : Position.Z -= self_bounds.Z ;
+		}
+	}
+}
+
+void ASPPawnCPP::SpawnHitBox_Implementation(FSPHitBoxDetails l_details)
+{
+
+}
+
+FVector2D ASPPawnCPP::AxisPosition_Implementation()
+{
+	return FVector2D();
+}
+
+void ASPPawnCPP::Server_HitPunch_Implementation()
+{
+	HitPunch();
+}
+
+bool ASPPawnCPP::Server_HitPunch_Validate()
+{
+	return true;
 }
 
 void ASPPawnCPP::Server_StopJump_Implementation()
@@ -126,18 +221,12 @@ bool ASPPawnCPP::Server_Move_Validate(float AxisX)
 
 void ASPPawnCPP::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	// Here we list the variables we want to replicate + a condition if wanted
+	//Here we list the variables we want to replicate + a condition if wanted
 	DOREPLIFETIME(ASPPawnCPP, CurrentPosition);
 	DOREPLIFETIME(ASPPawnCPP, States);
+	DOREPLIFETIME(ASPPawnCPP, Attributes);
+	DOREPLIFETIME(ASPPawnCPP, WorkData);
 }
-
-void ASPPawnCPP::GravityDelegeteBind(const float Pull)
-{
-	if (HasAuthority()) {
-		//Pull means how much you should lower y force this frame, pull is calculated on gravity object
-		Forces.Y -= Pull;
-	}
-}
 
 void ASPPawnCPP::Jump()
 {	
@@ -203,8 +292,8 @@ void ASPPawnCPP::StopJump()
 void ASPPawnCPP::Hit(float forceX, float forceY)
 {
 	if (HasAuthority()) {
-		Forces.X = forceX;
-		Forces.Y = forceY;
+		Forces.X += forceX;
+		Forces.Y += forceY;
 	}
 }
 
@@ -253,6 +342,13 @@ void ASPPawnCPP::Friction(float DeltaTime)
 			Forces.X = 0.0f;
 		}
 	}
+	}
+}
+
+void ASPPawnCPP::Gravity(float DeltaTime)
+{
+	if (HasAuthority()) {
+		Forces.Y -= ValuePerSecond(Attributes.Gravity, DeltaTime);
 	}
 }
 
@@ -336,7 +432,6 @@ void ASPPawnCPP::CalculateMovement()
 
 		if (States.JUMP) {
 			Forces.Y = Attributes.JumpPower;
-			GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, TEXT("FOUND JUMP"));
 		}
 		else if (States.JUMP_LEFT_WALL) {
 
@@ -371,10 +466,12 @@ void ASPPawnCPP::Move(bool right)
 		if (right) {
 			States.MOVE_LEFT = false;
 			States.MOVE_RIGHT = true;
+			WorkData.FacingRight = true;
 		}
 		else {
 			States.MOVE_LEFT = true;
 			States.MOVE_RIGHT = false;
+			WorkData.FacingRight = false;
 		}
 	}
 }

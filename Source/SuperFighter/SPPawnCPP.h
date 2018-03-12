@@ -5,6 +5,7 @@
 #include "GameFramework/Pawn.h"
 #include "PaperFlipbookComponent.h"
 #include "Net/UnrealNetwork.h"
+#include "SPHitBoxCPP.h"
 #include "SPPawnCPP.generated.h"
 
 USTRUCT(BlueprintType)
@@ -33,9 +34,11 @@ struct FSPPawnAttributes {
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		int AirJumpAmount = 0;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
-		float Friction;
+		float Friction = 0;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
-		float AirFriction;
+		float AirFriction = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		float Gravity = 0;
 };
 
 USTRUCT(BlueprintType)
@@ -71,6 +74,8 @@ struct FSPWorkData {
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		bool IsLocal;
+
+		bool FacingRight;
 };
 
 USTRUCT(BlueprintType)
@@ -101,13 +106,13 @@ class SUPERFIGHTER_API ASPPawnCPP : public APawn
 protected:
 
 	FVector2D Forces;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		FSPPawnAttributes Attributes;
 	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		FSPPawnStates States;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		FSPStaticPawnAttributes StaticAttributes;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		FSPWorkData WorkData;
 	UPROPERTY(ReplicatedUsing = RepNot_UpdatePosition, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		FVector CurrentPosition;
@@ -132,6 +137,7 @@ protected:
 		void ChangeAnimation(FSPAnimationDetails details);
 
 	void Friction(float DeltaTime);
+	void Gravity(float DeltaTime);
 
 public:
 
@@ -153,9 +159,6 @@ public:
 		UBoxComponent *hit_box;
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = SuperFighter)
 		UPaperFlipbookComponent *animation;
-
-	UFUNCTION(BlueprintCallable, Category = SuperFighter)
-		void GravityDelegeteBind(const float Pull);
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void Jump();
@@ -189,11 +192,25 @@ public:
 	UFUNCTION(Server, unreliable, WithValidation, BlueprintCallable, Category = SuperFighter)
 		void Server_Move(float AxisX);
 
-	UFUNCTION(Server, reliable, WithValidation)
+	UFUNCTION(Server, unreliable, WithValidation)
 		//Server Will Only detect the jump that clients asks for
 		void Server_Jump();
 
-	UFUNCTION(Server, reliable, WithValidation)
+	UFUNCTION(Server, unreliable, WithValidation)
 		//Server Will Only detect the jump that clients asks for
 		void Server_StopJump();
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void HitPunch();
+
+	UFUNCTION(Server, unreliable, WithValidation)
+		void Server_HitPunch();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
+		FVector2D AxisPosition();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
+		void SpawnHitBox(FSPHitBoxDetails l_details);
+
+	void HitPosition(FVector& Position, FVector& Force);
 };

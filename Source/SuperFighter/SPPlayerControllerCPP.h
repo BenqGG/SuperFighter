@@ -34,4 +34,7 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SPPC)
 		APawn* Native_SpawnSPPawnBP(FVector Location);
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
+		FVector2D AxisPosition();
 };

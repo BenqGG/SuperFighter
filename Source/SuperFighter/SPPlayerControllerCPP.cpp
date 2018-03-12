@@ -21,6 +21,11 @@ void ASPPlayerControllerCPP::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 }
 
+FVector2D ASPPlayerControllerCPP::AxisPosition_Implementation()
+{
+	return FVector2D();
+}
+
 
 APawn * ASPPlayerControllerCPP::Native_SpawnSPPawnBP_Implementation(FVector Location)
 {
@@ -65,7 +70,7 @@ void ASPPlayerControllerCPP::Server_SpawnPawn_Implementation()
 		break;
 	}
 
-	APawn* SpawnedPawn = Native_SpawnSPPawnBP(location);
+	APawn* SpawnedPawn= Native_SpawnSPPawnBP(location);
 	if (IsValid(SpawnedPawn)) {
 		Possess(SpawnedPawn);
 	}
