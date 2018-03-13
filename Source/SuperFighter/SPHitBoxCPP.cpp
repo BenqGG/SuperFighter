@@ -17,10 +17,11 @@ ASPHitBoxCPP::ASPHitBoxCPP()
 
 void ASPHitBoxCPP::SetHitbox(FSPHitBoxDetails l_details)
 {
-		Details = l_details;
-		MainBody->SetSphereRadius(Details.Position.Y);
-		GetWorldTimerManager().SetTimer(DestroyTimer, this, &ASPHitBoxCPP::DestroyHitBox, Details.ExistTime, false);
-		Active = true;
+	Details = l_details;
+	MainBody->SetSphereRadius(Details.Position.Y);
+	GetWorldTimerManager().SetTimer(DestroyTimer, this, &ASPHitBoxCPP::DestroyHitBox, Details.ExistTime, false);
+	Active = true;
+	MainBody->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 }
 
 // Called when the game starts or when spawned
