@@ -86,7 +86,7 @@ void ASPPawnCPP::RepNot_UpdatePosition()
 	SetActorLocation(CurrentPosition, false);
 }
 
-void ASPPawnCPP::HitPunch()
+void ASPPawnCPP::HitPunch(bool FromClient, FVector2D ClientAxisPosition)
 {
 	if (HasAuthority()) {
 
@@ -102,22 +102,28 @@ void ASPPawnCPP::HitPunch()
 		HBDetails.MultiHit = false;
 		HBDetails.Owner = this;
 
-		HitPosition(HBDetails.Position, HBDetails.Force);
+		if (FromClient) {
+			HitPosition(ClientAxisPosition, HBDetails.Position, HBDetails.Force);
+		}
+		else {
+			HitPosition(AxisPosition(), HBDetails.Position, HBDetails.Force);
+		}
+		
 		SpawnHitBox(HBDetails);
 		
 	}
 	else {
-		Server_HitPunch();
+		Server_HitPunch(AxisPosition());
 	}
 }
 
-void ASPPawnCPP::HitPosition(FVector& Position, FVector& Force)
+void ASPPawnCPP::HitPosition(FVector2D AxisPosition, FVector& Position, FVector& Force)
 {
-	FVector2D axis_position = AxisPosition();
-	FVector self_position, self_bounds;
-	GetActorBounds(true, self_position, self_bounds);
+	FVector2D axis_position = AxisPosition;
+	FVector self_position;
+	self_position = GetActorLocation();
 
-	Position.Y = self_bounds.X; //Spehere radius
+	Position.Y = 35.0f; //Spehere radius
 	Force.Y = 0.0f;
 	if (axis_position.X > 1 || axis_position.X < -1) axis_position.X = 0.0f;
 	if (axis_position.Y > 1 || axis_position.X < -1) axis_position.Y = 0.0f;
@@ -128,11 +134,11 @@ void ASPPawnCPP::HitPosition(FVector& Position, FVector& Force)
 		Position.Z = self_position.Z;
 		Force.Z = 0.0f;
 		if (WorkData.FacingRight) {
-			Position.X += self_bounds.X ;
+			Position.X += 35.0f;
 			Force.X = 1000.0f;
 		}
 		else {
-			Position.X -= self_bounds.X ;
+			Position.X -= 35.0f;
 			Force.X = -1000.0f;
 		}
 
@@ -149,12 +155,12 @@ void ASPPawnCPP::HitPosition(FVector& Position, FVector& Force)
 
 			Position.X = self_position.X;
 			Position.Z = self_position.Z;
-			axis_position.X > 0 ? Position.X += self_bounds.X : Position.X -= self_bounds.X;
+			axis_position.X > 0 ? Position.X += 35.0f : Position.X -= 35.0f;
 		}
 		else {
 			Position.X = self_position.X;
 			Position.Z = self_position.Z;
-			axis_position.Y > 0 ? Position.Z += self_bounds.Z : Position.Z -= self_bounds.Z ;
+			axis_position.Y > 0 ? Position.Z += 35.0f : Position.Z -= 35.0f;
 		}
 	}
 }
@@ -169,12 +175,13 @@ FVector2D ASPPawnCPP::AxisPosition_Implementation()
 	return FVector2D();
 }
 
-void ASPPawnCPP::Server_HitPunch_Implementation()
+void ASPPawnCPP::Server_HitPunch_Implementation(FVector2D AxisPosition)
 {
-	HitPunch();
+	
+	HitPunch(true, AxisPosition);
 }
 
-bool ASPPawnCPP::Server_HitPunch_Validate()
+bool ASPPawnCPP::Server_HitPunch_Validate(FVector2D AxisPosition)
 {
 	return true;
 }

@@ -10,23 +10,23 @@ ASPHitBoxCPP::ASPHitBoxCPP()
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
 
-MainBody = CreateDefaultSubobject<USphereComponent>(TEXT("Hit_Box"));
+	MainBody = CreateDefaultSubobject<USphereComponent>(TEXT("Hit_Box"));
 	RootComponent = MainBody;
+	Active = false;
 }
 
 void ASPHitBoxCPP::SetHitbox(FSPHitBoxDetails l_details)
 {
 		Details = l_details;
-		GetWorldTimerManager().SetTimer(DestroyTimer, this, &ASPHitBoxCPP::DestroyHitBox, Details.ExistTime, false);
 		MainBody->SetSphereRadius(Details.Position.Y);
-		SetActorLocation(FVector(Details.Position.X, 0, Details.Position.Z));
+		GetWorldTimerManager().SetTimer(DestroyTimer, this, &ASPHitBoxCPP::DestroyHitBox, Details.ExistTime, false);
+		Active = true;
 }
 
 // Called when the game starts or when spawned
 void ASPHitBoxCPP::BeginPlay()
 {
 	Super::BeginPlay();
-	
 }
 
 // Called every frame

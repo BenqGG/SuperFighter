@@ -40,6 +40,8 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 	USphereComponent* MainBody;
 	FTimerHandle DestroyTimer;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	bool Active;
 		
 public:	
 	// Sets default values for this actor's properties

@@ -201,10 +201,10 @@ public:
 		void Server_StopJump();
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
-		void HitPunch();
+		void HitPunch(bool FromClient = false, FVector2D ClientAxisPosition = FVector2D(0, 0));
 
 	UFUNCTION(Server, unreliable, WithValidation)
-		void Server_HitPunch();
+		void Server_HitPunch(FVector2D AxisPosition);
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
 		FVector2D AxisPosition();
@@ -212,5 +212,5 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
 		void SpawnHitBox(FSPHitBoxDetails l_details);
 
-	void HitPosition(FVector& Position, FVector& Force);
+	void HitPosition(FVector2D AxisPosition, FVector& Position, FVector& Force);
 };
