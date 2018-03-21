@@ -3,7 +3,15 @@
 #pragma once
 
 #include "GameFramework/Actor.h"
+#include "Net/UnrealNetwork.h"
 #include "SPHitBoxCPP.generated.h"
+
+UENUM(BlueprintType)
+enum class HitType : uint8 
+{ 
+	HT_Pawn UMETA(DisplayName = "Pawn"), 
+	HT_Missile UMETA(DisplayName = "Missile")
+};
 
 USTRUCT(BlueprintType)
 struct FSPHitBoxDetails {
@@ -58,4 +66,10 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 	void DestroyHitBox();
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+	void HitActor(AActor *HitActor, HitType Type = HitType::HT_Pawn);
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
+		void HitPawn(AActor *HitActor);
 };

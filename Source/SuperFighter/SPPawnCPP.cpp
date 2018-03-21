@@ -11,6 +11,8 @@ ASPPawnCPP::ASPPawnCPP()
 
 	Forces.X = 0.0f;
 	Forces.Y = 0.0f;
+	Client_Forces.X = 0.0f;
+	Client_Forces.Y = 0.0f;
 
 	collision_box = CreateDefaultSubobject<UBoxComponent>(TEXT("Collision"));
 	RootComponent = collision_box;
@@ -29,13 +31,28 @@ ASPPawnCPP::ASPPawnCPP()
 	WorkData.AirJumped = 0;
 	WorkData.IsLocal = false;
 	WorkData.FacingRight = true;
+	WorkData.PossitionError = FVector(0.0f, 0.0f, 0.0f);
+
+	Actions.delay = 0.0f;
+	Actions.DelayAction = nullptr;
+	Actions.Jump = nullptr;
+	Actions.LeaveGround = nullptr;
+	Actions.LightAttack = nullptr;
+	Actions.Move = nullptr;
+	Actions.RealeaseStrongAttack = nullptr;
+	Actions.RunAttack = nullptr;
+	Actions.StartRun = nullptr;
+	Actions.StopJump = nullptr;
+	Actions.StopMove = nullptr;
+	Actions.StrongAttack = nullptr;
+	Actions.TouchGround = nullptr;
 }
 
 // Called when the game starts or when spawned
 void ASPPawnCPP::BeginPlay()
 {
 	Super::BeginPlay();
-	//TODO BIND GRAVITY DELEGATE delegate.AddDynamic(this, &YourClass::BindToDelegate);
+	SetUpIdle();
 
 }
 
@@ -43,12 +60,23 @@ void ASPPawnCPP::BeginPlay()
 void ASPPawnCPP::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
+	
 	if (HasAuthority()) {
 		ApplyForces(DeltaTime);
 		Friction(DeltaTime);
 		Gravity(DeltaTime);
 		CalculateMovement();
+		CurrentPosition = GetActorLocation();
+		Client_Forces = Forces;
+		GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, FString::SanitizeFloat(GetController()->PlayerState->ExactPing));
+	}
+	else {
+		ApplyForces(DeltaTime);
+		FixPossitionError();
+		Friction(DeltaTime);
+		Gravity(DeltaTime);
+		CalculateMovement();
+		//GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, WorkData.PossitionError.ToCompactString());
 	}
 }
 
@@ -83,7 +111,9 @@ void ASPPawnCPP::Local_Move(float AxisX)
 
 void ASPPawnCPP::RepNot_UpdatePosition()
 {
-	SetActorLocation(CurrentPosition, false);
+	FVector current_location = GetActorLocation();
+	WorkData.PossitionError.X = CurrentPosition.X - current_location.X;
+	WorkData.PossitionError.Z = CurrentPosition.Z - current_location.Z;
 }
 
 void ASPPawnCPP::HitPunch(bool FromClient, FVector2D ClientAxisPosition)
@@ -97,7 +127,7 @@ void ASPPawnCPP::HitPunch(bool FromClient, FVector2D ClientAxisPosition)
 
 
 		HBDetails.ExistTime = 0.1f;
-		HBDetails.FriendlyFire = true;
+		HBDetails.FriendlyFire = false;
 		HBDetails.HitStun = 0.0f;
 		HBDetails.MultiHit = false;
 		HBDetails.Owner = this;
@@ -164,6 +194,31 @@ void ASPPawnCPP::HitPosition(FVector2D AxisPosition, FVector& Position, FVector&
 		}
 	}
 }
+
+void ASPPawnCPP::CallAction(void(*f)())
+{
+	f();
+}
+
+void ASPPawnCPP::ChangeAnimationRotation()
+{
+	FRotator rotation(0.0f, 0.0f, 0.0f);
+	if(WorkData.FacingRight)
+	{
+		animation->SetRelativeRotation(rotation, false);
+	}
+	else {
+		rotation = FRotator(0.0f, 180.0f,0.0f);
+		animation->SetRelativeRotation(rotation, false);
+	}
+}
+
+void ASPPawnCPP::SetUpIdle_Implementation()
+{
+	Actions.Move = &ASPPawnCPP::ChangeAnimationRotation;
+}
+
+
 
 void ASPPawnCPP::SpawnHitBox_Implementation(FSPHitBoxDetails l_details)
 {
@@ -233,6 +288,8 @@ void ASPPawnCPP::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifeti
 	DOREPLIFETIME(ASPPawnCPP, States);
 	DOREPLIFETIME(ASPPawnCPP, Attributes);
 	DOREPLIFETIME(ASPPawnCPP, WorkData);
+	DOREPLIFETIME(ASPPawnCPP, Client_Forces);
+	DOREPLIFETIME(ASPPawnCPP, StaticAttributes);
 }
 
 void ASPPawnCPP::Jump()
@@ -271,7 +328,6 @@ void ASPPawnCPP::Jump()
 			Server_Jump();
 		}
 	}
-		
 }
 
 void ASPPawnCPP::StopJump()
@@ -328,27 +384,40 @@ void ASPPawnCPP::Friction(float DeltaTime)
 {
 	if(HasAuthority()){
 		if (Forces.X > 0.0f) {
-		if (GroundUnderFeet()) {
-			Forces.X -= ValuePerSecond(Attributes.Friction, DeltaTime);
+			if (GroundUnderFeet()) {
+				Forces.X -= ValuePerSecond(Attributes.Friction, DeltaTime);
+			}
+			else {
+				Forces.X -= ValuePerSecond(Attributes.AirFriction, DeltaTime);
+			}
+			if (Forces.X < 0.0f) {
+				Forces.X = 0.0f;
+			}
 		}
-		else {
-			Forces.X -= ValuePerSecond(Attributes.AirFriction, DeltaTime);
-		}
-		if (Forces.X < 0.0f) {
-			Forces.X = 0.0f;
-		}
-	}
 		else if (Forces.X < 0.0f) {
-		if (GroundUnderFeet()) {
-			Forces.X += ValuePerSecond(Attributes.Friction, DeltaTime);
-		}
-		else {
-			Forces.X += ValuePerSecond(Attributes.AirFriction, DeltaTime);
-		}
-		if (Forces.X > 0.0f) {
-			Forces.X = 0.0f;
+			if (GroundUnderFeet()) {
+				Forces.X += ValuePerSecond(Attributes.Friction, DeltaTime);
+			}
+			else {
+				Forces.X += ValuePerSecond(Attributes.AirFriction, DeltaTime);
+			}
+			if (Forces.X > 0.0f) {
+				Forces.X = 0.0f;
+			}
 		}
 	}
+	else {
+		if (Client_Forces.X != 0.0f) {
+			float current_friction;
+			if (GroundUnderFeet()) {
+				current_friction = Attributes.Friction;
+			}
+			else {
+				current_friction = Attributes.AirFriction;
+			}
+			Client_Forces.X > 0 ? current_friction : current_friction *= -1;
+			Client_Forces.X -= ValuePerSecond(current_friction, DeltaTime);
+		}
 	}
 }
 
@@ -357,6 +426,52 @@ void ASPPawnCPP::Gravity(float DeltaTime)
 	if (HasAuthority()) {
 		Forces.Y -= ValuePerSecond(Attributes.Gravity, DeltaTime);
 	}
+	else {
+		Client_Forces.Y -= ValuePerSecond(Attributes.Gravity, DeltaTime);
+	}
+	
+}
+
+void ASPPawnCPP::FixPossitionError()
+{
+	FVector current_position = GetActorLocation();
+
+	if ( (WorkData.PossitionError.X > 0.0f && WorkData.PossitionError.X <= 10.0f ) || (WorkData.PossitionError.X > 20.0f)) {
+		current_position.X += WorkData.PossitionError.X;
+		WorkData.PossitionError.X = 0.0f;
+	}
+	else if (WorkData.PossitionError.X > 10.0f && WorkData.PossitionError.X <= 20.0f) {
+		current_position.X += 10.0f;
+		WorkData.PossitionError.X -= 10.0f;
+	}
+	else if ((WorkData.PossitionError.X < 0.0f && WorkData.PossitionError.X >= -10.0f) || (WorkData.PossitionError.X < -20.0f)) {
+		current_position.X += WorkData.PossitionError.X;
+		WorkData.PossitionError.X = 0.0f;
+	}
+	else if (WorkData.PossitionError.X < -10.0f && WorkData.PossitionError.X >= -20.0f) {
+		current_position.X += 10.0f;
+		WorkData.PossitionError.X += 10.0f;
+	}
+
+	if ((WorkData.PossitionError.Z > 0.0f && WorkData.PossitionError.Z <= 10.0f) || (WorkData.PossitionError.Z > 20.0f)) {
+		current_position.Z += WorkData.PossitionError.Z;
+		WorkData.PossitionError.Z = 0.0f;
+	}
+	else if (WorkData.PossitionError.X > 10.0f && WorkData.PossitionError.X <= 20.0f) {
+		current_position.Z += 10.0f;
+		WorkData.PossitionError.Z -= 10.0f;
+	}
+	else if ((WorkData.PossitionError.Z < 0.0f && WorkData.PossitionError.Z >= -10.0f) || (WorkData.PossitionError.Z < -20.0f)) {
+		current_position.Z += WorkData.PossitionError.Z;
+		WorkData.PossitionError.Z = 0.0f;
+	}
+	else if (WorkData.PossitionError.Z < -10.0f && WorkData.PossitionError.Z >= -20.0f) {
+		current_position.Z += 10.0f;
+		WorkData.PossitionError.Z += 10.0f;
+	}
+	
+
+	SetActorLocation(current_position, false);
 }
 
 void ASPPawnCPP::ApplyForces(float DeltaTime)
@@ -379,8 +494,19 @@ void ASPPawnCPP::ApplyForces(float DeltaTime)
 				}
 				Forces.Y = 0.0f;
 			}
+		}		
+	}
+	else {
+		if (Client_Forces.X != 0.0f) {
+			current_location = GetActorLocation();
+			current_location.X += Client_Forces.X * (DeltaTime / 1.0f);
+			SetActorLocation(current_location, true, nullptr);
 		}
-		CurrentPosition = GetActorLocation();
+		if (Client_Forces.Y != 0.0f) {
+			current_location = GetActorLocation();
+			current_location.Z += Client_Forces.Y * (DeltaTime / 1.0f);
+			SetActorLocation(current_location, true, nullptr);
+		}
 	}
 }
 
@@ -455,6 +581,74 @@ void ASPPawnCPP::CalculateMovement()
 			}
 		}
 	}
+	else {
+		if (States.MOVE_LEFT) {
+			if (GroundUnderFeet()) {
+				if (Client_Forces.X == 0) {
+					Client_Forces.X -= Attributes.MoveSpeed * StaticAttributes.MovementScale;
+				}
+				else if (Client_Forces.X < 0 && Client_Forces.X >(-Attributes.MoveSpeed * StaticAttributes.MovementScale)) {
+					Client_Forces.X = -Attributes.MoveSpeed * StaticAttributes.MovementScale;
+				}
+				else if (Client_Forces.X > 0 && Client_Forces.X < (Attributes.MoveSpeed * StaticAttributes.MovementScale)) {
+					Client_Forces.X = -Attributes.MoveSpeed * StaticAttributes.MovementScale;
+				}
+			}
+			else {
+				if (Client_Forces.X == 0) {
+					Client_Forces.X -= Attributes.MoveSpeed * StaticAttributes.AirMovementScale;
+				}
+				else if (Client_Forces.X < 0 && Client_Forces.X >(-Attributes.MoveSpeed * StaticAttributes.AirMovementScale)) {
+					Client_Forces.X = -Attributes.MoveSpeed * StaticAttributes.AirMovementScale;
+				}
+				else if (Client_Forces.X > 0 && Client_Forces.X < (Attributes.MoveSpeed * StaticAttributes.AirMovementScale)) {
+					Client_Forces.X = -Attributes.MoveSpeed * StaticAttributes.AirMovementScale;
+				}
+			}
+		}
+		else if (States.MOVE_RIGHT) {
+			if (GroundUnderFeet()) {
+				if (Client_Forces.X == 0) {
+					Client_Forces.X = Attributes.MoveSpeed * StaticAttributes.MovementScale;
+				}
+				else if (Client_Forces.X > 0 && Client_Forces.X < (Attributes.MoveSpeed * StaticAttributes.MovementScale)) {
+					Client_Forces.X = Attributes.MoveSpeed * StaticAttributes.MovementScale;
+				}
+				else if (Client_Forces.X < 0 && Client_Forces.X >(-Attributes.MoveSpeed * StaticAttributes.MovementScale)) {
+					Client_Forces.X = Attributes.MoveSpeed * StaticAttributes.MovementScale;
+				}
+			}
+			else {
+				if (Client_Forces.X == 0) {
+					Client_Forces.X = Attributes.MoveSpeed * StaticAttributes.AirMovementScale;
+				}
+				else if (Client_Forces.X > 0 && Client_Forces.X < (Attributes.MoveSpeed * StaticAttributes.AirMovementScale)) {
+					Client_Forces.X = Attributes.MoveSpeed * StaticAttributes.AirMovementScale;
+				}
+				else if (Client_Forces.X < 0 && Client_Forces.X >(-Attributes.MoveSpeed * StaticAttributes.AirMovementScale)) {
+					Client_Forces.X = Attributes.MoveSpeed * StaticAttributes.AirMovementScale;
+				}
+			}
+		}
+
+		if (States.JUMP) {
+			Client_Forces.Y = Attributes.JumpPower;
+		}
+		else if (States.JUMP_LEFT_WALL) {
+
+			Client_Forces.Y = Attributes.JumpPower / StaticAttributes.WallJumpYModifier;
+			if (Client_Forces.X < Attributes.JumpPower / StaticAttributes.WallJumpXModifier) {
+				Client_Forces.X = Attributes.JumpPower / StaticAttributes.WallJumpXModifier;
+			}
+		}
+		else if (States.JUMP_RIGHT_WALL) {
+
+			Client_Forces.Y = Attributes.JumpPower / StaticAttributes.WallJumpYModifier;
+			if (Client_Forces.X > -Attributes.JumpPower / StaticAttributes.WallJumpXModifier) {
+				Client_Forces.X = -Attributes.JumpPower / StaticAttributes.WallJumpXModifier;
+			}
+		}
+	}
 }
 
 float ASPPawnCPP::ValuePerSecond(float value, float deltaTime)
@@ -480,6 +674,7 @@ void ASPPawnCPP::Move(bool right)
 			States.MOVE_RIGHT = false;
 			WorkData.FacingRight = false;
 		}
+		if(Actions.Move != nullptr) CallActionFunction(*this, Actions.Move);
 	}
 }
 

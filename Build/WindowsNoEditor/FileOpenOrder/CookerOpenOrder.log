@@ -204,6 +204,7 @@
 "../../../SuperFighter/Content/BLUEPRINTS/WORLDSETTINGS/SuperFighterGameModeBaseBP.uasset" 203
 "../../../SuperFighter/Content/Arena1_BuiltData.uasset" 204
 "../../../SuperFighter/Content/Arena1.umap" 205
-"../../../SuperFighter/Content/FightMap1.umap" 206
-"../../../SuperFighter/Content/MainMenu.umap" 207
-"../../../Engine/Content/Maps/Entry.umap" 208
+"../../../SuperFighter/Content/FightMap1_BuiltData.uasset" 206
+"../../../SuperFighter/Content/FightMap1.umap" 207
+"../../../SuperFighter/Content/MainMenu.umap" 208
+"../../../Engine/Content/Maps/Entry.umap" 209

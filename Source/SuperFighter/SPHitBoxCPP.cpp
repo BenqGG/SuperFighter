@@ -43,3 +43,28 @@ void ASPHitBoxCPP::DestroyHitBox()
 	AActor::Destroy(true, false);
 }
 
+void ASPHitBoxCPP::HitActor(AActor * HitActor, HitType Type)
+{
+	if (HasAuthority()) {
+		if (Details.FriendlyFire || HitActor != Details.Owner) {
+			if (Active) {
+				switch (Type) {
+				case HitType::HT_Pawn:
+					HitPawn(HitActor);
+					if (!Details.MultiHit) DestroyHitBox();
+					break;
+
+				case HitType::HT_Missile:
+					break;
+
+				default:
+					break;
+				}
+			}
+		}
+	}
+}
+
+void ASPHitBoxCPP::HitPawn_Implementation(AActor * HitActor)
+{
+}

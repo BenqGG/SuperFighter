@@ -3,10 +3,36 @@
 #pragma once
 
 #include "GameFramework/Pawn.h"
+#include "Runtime/Core/Public/Templates/Function.h"
 #include "PaperFlipbookComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "SPHitBoxCPP.h"
 #include "SPPawnCPP.generated.h"
+
+class ASPPawnCPP;
+typedef  void (ASPPawnCPP::*PawnActions)();
+#define CALL_MEMBER_FN(object,ptrToMember)  ((object).*(ptrToMember))
+
+USTRUCT(BlueprintType)
+struct FSPPanActions {
+	GENERATED_BODY()
+
+	FTimerHandle DelayTimer;
+	//0 means turned off
+	float delay; 
+	void(*DelayAction)();
+	PawnActions Move;
+	void(*StopMove)();
+	void(*StartRun)();
+	void(*LightAttack)();
+	void(*StrongAttack)();
+	void(*RealeaseStrongAttack)();
+	void(*RunAttack)();
+	void(*Jump)();
+	void(*StopJump)();
+	void(*TouchGround)();
+	void(*LeaveGround)();
+};
 
 USTRUCT(BlueprintType)
 struct FSPAnimationDetails {
@@ -71,6 +97,8 @@ struct FSPWorkData {
 		int AirJumped;
 
 		FTimerHandle JumpTimer;
+
+		FVector PossitionError;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		bool IsLocal;
@@ -105,12 +133,17 @@ class SUPERFIGHTER_API ASPPawnCPP : public APawn
 
 protected:
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	FSPPanActions Actions;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 	FVector2D Forces;
+	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	FVector2D Client_Forces;
 	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		FSPPawnAttributes Attributes;
 	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		FSPPawnStates States;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		FSPStaticPawnAttributes StaticAttributes;
 	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		FSPWorkData WorkData;
@@ -138,6 +171,8 @@ protected:
 
 	void Friction(float DeltaTime);
 	void Gravity(float DeltaTime);
+
+	void FixPossitionError();
 
 public:
 
@@ -213,4 +248,18 @@ public:
 		void SpawnHitBox(FSPHitBoxDetails l_details);
 
 	void HitPosition(FVector2D AxisPosition, FVector& Position, FVector& Force);
+
+	//UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void CallAction(void(*f)());
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
+		//Called After Pawn Spawn as action to call idle state of character
+		void SetUpIdle();
+
+	void CallActionFunction(ASPPawnCPP& o, PawnActions p) {
+		CALL_MEMBER_FN(o, p)();
+	}
+
+
+	void ChangeAnimationRotation();
 };
