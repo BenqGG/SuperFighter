@@ -9,6 +9,8 @@
 #include "SPHitBoxCPP.h"
 #include "SPPawnCPP.generated.h"
 
+DECLARE_DYNAMIC_DELEGATE(FActionFunction);
+
 class ASPPawnCPP;
 typedef  void (ASPPawnCPP::*PawnActions)();
 #define CALL_MEMBER_FN(object,ptrToMember)  ((object).*(ptrToMember))
@@ -17,21 +19,31 @@ USTRUCT(BlueprintType)
 struct FSPPanActions {
 	GENERATED_BODY()
 
-	FTimerHandle DelayTimer;
-	//0 means turned off
-	float delay; 
-	void(*DelayAction)();
-	PawnActions Move;
-	void(*StopMove)();
-	void(*StartRun)();
-	void(*LightAttack)();
-	void(*StrongAttack)();
-	void(*RealeaseStrongAttack)();
-	void(*RunAttack)();
-	void(*Jump)();
-	void(*StopJump)();
-	void(*TouchGround)();
-	void(*LeaveGround)();
+	float delay; 	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	FActionFunction DelayAction;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	FActionFunction Move;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	FActionFunction StopMove;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	FActionFunction StartRun;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	FActionFunction LightAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	FActionFunction StrongAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	FActionFunction RealeaseStrongAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	FActionFunction RunAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	FActionFunction Jump;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	FActionFunction StopJump;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	FActionFunction TouchGround;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	FActionFunction LeaveGround;
 };
 
 USTRUCT(BlueprintType)
@@ -102,7 +114,7 @@ struct FSPWorkData {
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		bool IsLocal;
-
+	UPROPERTY()
 		bool FacingRight;
 };
 
@@ -135,6 +147,7 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 	FSPPanActions Actions;
+	FTimerHandle DelayTimer;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 	FVector2D Forces;
 	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
@@ -249,17 +262,27 @@ public:
 
 	void HitPosition(FVector2D AxisPosition, FVector& Position, FVector& Force);
 
-	//UFUNCTION(BlueprintCallable, Category = SuperFighter)
-		void CallAction(void(*f)());
-
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
 		//Called After Pawn Spawn as action to call idle state of character
 		void SetUpIdle();
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		//Must be called everytime we change anything here
+		void ResetActions(float delay_delta);
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void CallDelayAction();
 
 	void CallActionFunction(ASPPawnCPP& o, PawnActions p) {
 		CALL_MEMBER_FN(o, p)();
 	}
 
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
+		void ChangeAnimationRotation();
 
-	void ChangeAnimationRotation();
+	bool CanMove() { return true; }
+	bool CanStopMove() { return true; }
+	bool CanDelayAction() { return true; }
+	bool CanJump() { return true; }
+	bool CanStopJump() { return true; }
 };

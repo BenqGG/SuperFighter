@@ -34,18 +34,6 @@ ASPPawnCPP::ASPPawnCPP()
 	WorkData.PossitionError = FVector(0.0f, 0.0f, 0.0f);
 
 	Actions.delay = 0.0f;
-	Actions.DelayAction = nullptr;
-	Actions.Jump = nullptr;
-	Actions.LeaveGround = nullptr;
-	Actions.LightAttack = nullptr;
-	Actions.Move = nullptr;
-	Actions.RealeaseStrongAttack = nullptr;
-	Actions.RunAttack = nullptr;
-	Actions.StartRun = nullptr;
-	Actions.StopJump = nullptr;
-	Actions.StopMove = nullptr;
-	Actions.StrongAttack = nullptr;
-	Actions.TouchGround = nullptr;
 }
 
 // Called when the game starts or when spawned
@@ -53,7 +41,6 @@ void ASPPawnCPP::BeginPlay()
 {
 	Super::BeginPlay();
 	SetUpIdle();
-
 }
 
 // Called every frame
@@ -195,12 +182,8 @@ void ASPPawnCPP::HitPosition(FVector2D AxisPosition, FVector& Position, FVector&
 	}
 }
 
-void ASPPawnCPP::CallAction(void(*f)())
-{
-	f();
-}
 
-void ASPPawnCPP::ChangeAnimationRotation()
+void ASPPawnCPP::ChangeAnimationRotation_Implementation()
 {
 	FRotator rotation(0.0f, 0.0f, 0.0f);
 	if(WorkData.FacingRight)
@@ -215,7 +198,7 @@ void ASPPawnCPP::ChangeAnimationRotation()
 
 void ASPPawnCPP::SetUpIdle_Implementation()
 {
-	Actions.Move = &ASPPawnCPP::ChangeAnimationRotation;
+
 }
 
 
@@ -295,31 +278,39 @@ void ASPPawnCPP::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifeti
 void ASPPawnCPP::Jump()
 {	
 	if (HasAuthority()) {
-		if (GroundUnderFeet()) {
-			States.JUMP = true;
-			GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
-		}
-		else if (GroundNextToFeet(true)) {
-			States.JUMP_RIGHT_WALL = true;
-			GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
-		}
-		else if (GroundNextToFeet(false)) {
-			States.JUMP_LEFT_WALL = true;
-			GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
-		}
-		else if (WorkData.AirJumped < Attributes.AirJumpAmount) {
-			WorkData.AirJumped++;
-			if (States.MOVE_LEFT) {
-				States.JUMP_RIGHT_WALL = true;
-				GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
-			}
-			else if (States.MOVE_RIGHT) {
-				States.JUMP_LEFT_WALL = true;
-				GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
-			}
-			else {
-				States.JUMP = true;
-				GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
+			if (CanJump()) {
+				if (GroundUnderFeet()) {
+					States.JUMP = true;
+					GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
+					Actions.Jump.ExecuteIfBound();
+				}
+				else if (GroundNextToFeet(true)) {
+					States.JUMP_RIGHT_WALL = true;
+					GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
+					Actions.Jump.ExecuteIfBound();
+				}
+				else if (GroundNextToFeet(false)) {
+					States.JUMP_LEFT_WALL = true;
+					GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
+					Actions.Jump.ExecuteIfBound();
+				}
+				else if (WorkData.AirJumped < Attributes.AirJumpAmount) {
+					WorkData.AirJumped++;
+					if (States.MOVE_LEFT) {
+						States.JUMP_RIGHT_WALL = true;
+						GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
+						Actions.Jump.ExecuteIfBound();
+					}
+					else if (States.MOVE_RIGHT) {
+						States.JUMP_LEFT_WALL = true;
+						GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
+						Actions.Jump.ExecuteIfBound();
+					}
+					else {
+						States.JUMP = true;
+						GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
+						Actions.Jump.ExecuteIfBound();
+					}
 			}
 		}
 	}
@@ -333,17 +324,19 @@ void ASPPawnCPP::Jump()
 void ASPPawnCPP::StopJump()
 {
 	if (HasAuthority()) {
-		if (States.JUMP) {
-			States.JUMP = false;
-			
+		if (CanStopJump()) {
+			if (States.JUMP) {
+				States.JUMP = false;
+			}
+			if (States.JUMP_LEFT_WALL) {
+				States.JUMP_LEFT_WALL = false;
+			}
+			if (States.JUMP_RIGHT_WALL) {
+				States.JUMP_RIGHT_WALL = false;
+			}
+			Actions.StopJump.ExecuteIfBound();
+			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
 		}
-		if (States.JUMP_LEFT_WALL) {
-			States.JUMP_LEFT_WALL = false;
-		}
-		if (States.JUMP_RIGHT_WALL) {
-			States.JUMP_RIGHT_WALL = false;
-		}
-		GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
 	}
 	else {
 		if (States.JUMP || States.JUMP_LEFT_WALL || States.JUMP_RIGHT_WALL) {
@@ -664,27 +657,49 @@ void ASPPawnCPP::SetAttributes(FSPPawnAttributes new_attributes)
 void ASPPawnCPP::Move(bool right)
 {
 	if (HasAuthority()) {
-		if (right) {
-			States.MOVE_LEFT = false;
-			States.MOVE_RIGHT = true;
-			WorkData.FacingRight = true;
+		if (CanMove()) {
+			if (right) {
+				States.MOVE_LEFT = false;
+				States.MOVE_RIGHT = true;
+				WorkData.FacingRight = true;
+			}
+			else {
+				States.MOVE_LEFT = true;
+				States.MOVE_RIGHT = false;
+				WorkData.FacingRight = false;
+			}
+			Actions.Move.ExecuteIfBound();
 		}
-		else {
-			States.MOVE_LEFT = true;
-			States.MOVE_RIGHT = false;
-			WorkData.FacingRight = false;
-		}
-		if(Actions.Move != nullptr) CallActionFunction(*this, Actions.Move);
 	}
 }
 
 void ASPPawnCPP::StopMove()
 {
 	if (HasAuthority()) {
-		States.MOVE_LEFT = false;
-		States.MOVE_RIGHT = false;
+		if (CanStopMove()) {
+			States.MOVE_LEFT = false;
+			States.MOVE_RIGHT = false;
+			Actions.StopMove.ExecuteIfBound();
+		}
 	}
 }
 
+void ASPPawnCPP::ResetActions(float delay_delta)
+{
+	if (HasAuthority()) {
+		Actions.delay = delay_delta;
+		GetWorldTimerManager().ClearTimer(DelayTimer);
+		if (Actions.delay > 0.0f) {
+			GetWorldTimerManager().SetTimer(DelayTimer, this, &ASPPawnCPP::CallDelayAction, Actions.delay, false);
+		}
+	}
+}
 
-
+void ASPPawnCPP::CallDelayAction()
+{	
+	if (HasAuthority()) {
+		if (CanDelayAction()) {
+			Actions.DelayAction.ExecuteIfBound();
+		}
+	}
+}
