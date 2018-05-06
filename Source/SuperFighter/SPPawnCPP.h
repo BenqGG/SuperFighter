@@ -27,15 +27,11 @@ struct FSPPanActions {
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 	FActionFunction StopMove;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
-	FActionFunction StartRun;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 	FActionFunction LightAttack;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 	FActionFunction StrongAttack;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 	FActionFunction RealeaseStrongAttack;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
-	FActionFunction RunAttack;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 	FActionFunction Jump;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
@@ -44,6 +40,10 @@ struct FSPPanActions {
 	FActionFunction TouchGround;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 	FActionFunction LeaveGround;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction Defence;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction ReleaseDefence;
 };
 
 USTRUCT(BlueprintType)
@@ -98,6 +98,27 @@ struct FSPPawnStates {
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		bool JUMP_RIGHT_WALL = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		bool ON_GROUND = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		//Character can not do anything from player commands while busy
+		bool BUSY = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		//IF Can Move or no
+		bool CAN_MOVE = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		//IF Can jump or no
+		bool CAN_JUMP = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		bool CAN_LIGHT_ATTACK = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		bool CAN_STRONG_ATTACK = true;
 };
 
 USTRUCT(BlueprintType)
@@ -212,7 +233,29 @@ public:
 		void Jump();
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void MakeBusy();
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void UnBusy();
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void SetCanJump(bool can) { States.CAN_JUMP = can; };
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void SetCanMove(bool can) { States.CAN_MOVE = can; };
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void SetCanLightAttack(bool can) { States.CAN_LIGHT_ATTACK = can; };
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void StopJump();
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void LightAttack();
+
+	UFUNCTION(Server, unreliable, WithValidation)
+		//Server Will Only detect the jump that clients asks for
+		void Server_LightAttack();
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void Hit(float forceX, float forcey);
@@ -280,9 +323,10 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
 		void ChangeAnimationRotation();
 
-	bool CanMove() { return true; }
+	bool CanMove() { if (!States.BUSY && States.CAN_MOVE) return true; return false; }
 	bool CanStopMove() { return true; }
 	bool CanDelayAction() { return true; }
-	bool CanJump() { return true; }
+	bool CanJump() { if (!States.BUSY && States.CAN_JUMP) return true; return false; }
 	bool CanStopJump() { return true; }
+	bool CanLightAttack() { if (!States.BUSY && States.CAN_LIGHT_ATTACK) return true; return false; }
 };

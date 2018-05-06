@@ -85,14 +85,16 @@ void ASPPawnCPP::CallEndViewTarget()
 
 void ASPPawnCPP::Local_Move(float AxisX)
 {
-	if (AxisX == 0 && (States.MOVE_LEFT || States.MOVE_RIGHT)) {
-		Server_Move(AxisX);
-	}
-	else if (AxisX > 0.0f && AxisX > 0.2f && !States.MOVE_RIGHT) {
-		Server_Move(AxisX);
-	}
-	else if (AxisX < 0.0f && AxisX < -0.2f && !States.MOVE_LEFT) {
-		Server_Move(AxisX);
+	if (CanMove()) {
+		if (AxisX == 0 && (States.MOVE_LEFT || States.MOVE_RIGHT)) {
+			Server_Move(AxisX);
+		}
+		else if (AxisX > 0.0f && AxisX > 0.2f && !States.MOVE_RIGHT) {
+			Server_Move(AxisX);
+		}
+		else if (AxisX < 0.0f && AxisX < -0.2f && !States.MOVE_LEFT) {
+			Server_Move(AxisX);
+		}
 	}
 }
 
@@ -245,18 +247,19 @@ bool ASPPawnCPP::Server_Jump_Validate()
 }
 
 void ASPPawnCPP::Server_Move_Implementation(float AxisX)
-{
-	if (AxisX >= -1 && AxisX <= 1) {
-		if (AxisX == 0 && (States.MOVE_LEFT || States.MOVE_RIGHT)) {
-			StopMove();
+{	
+	if (CanMove())
+		if (AxisX >= -1 && AxisX <= 1) {
+			if (AxisX == 0 && (States.MOVE_LEFT || States.MOVE_RIGHT)) {
+				StopMove();
+			}
+			else if (AxisX > 0.0f && AxisX > 0.2f && !States.MOVE_RIGHT) {
+				Move(true);
+			}
+			else if (AxisX < 0.0f && AxisX < -0.2f && !States.MOVE_LEFT) {
+				Move(false);
+			}
 		}
-		else if (AxisX > 0.0f && AxisX > 0.2f && !States.MOVE_RIGHT) {
-			Move(true);
-		}
-		else if (AxisX < 0.0f && AxisX < -0.2f && !States.MOVE_LEFT) {
-			Move(false);
-		}
-	}
 }
 
 bool ASPPawnCPP::Server_Move_Validate(float AxisX)
@@ -273,7 +276,8 @@ void ASPPawnCPP::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifeti
 	DOREPLIFETIME(ASPPawnCPP, WorkData);
 	DOREPLIFETIME(ASPPawnCPP, Client_Forces);
 	DOREPLIFETIME(ASPPawnCPP, StaticAttributes);
-}
+}
+
 
 void ASPPawnCPP::Jump()
 {	
@@ -315,10 +319,23 @@ void ASPPawnCPP::Jump()
 		}
 	}
 	else {
-		if (WorkData.AirJumped < Attributes.AirJumpAmount || GroundUnderFeet() || GroundNextToFeet(true) || GroundNextToFeet(false) ) {
-			Server_Jump();
+		if (CanJump()) {
+			if (WorkData.AirJumped < Attributes.AirJumpAmount || GroundUnderFeet()
+				|| GroundNextToFeet(true) || GroundNextToFeet(false)) {
+				Server_Jump();
+			}
 		}
 	}
+}
+
+void ASPPawnCPP::MakeBusy()
+{
+	States.BUSY = true;
+}
+
+void ASPPawnCPP::UnBusy()
+{
+	States.BUSY = false;
 }
 
 void ASPPawnCPP::StopJump()
@@ -343,6 +360,30 @@ void ASPPawnCPP::StopJump()
 			Server_StopJump();
 		}
 	}
+}
+
+void ASPPawnCPP::LightAttack()
+{
+	if (HasAuthority()) {
+		if (CanLightAttack()) {
+			Actions.LightAttack.ExecuteIfBound();
+		}
+	}
+	else {
+		if (CanLightAttack()) {
+			Server_LightAttack();
+		}
+	}
+}
+
+void ASPPawnCPP::Server_LightAttack_Implementation()
+{
+	LightAttack();
+}
+
+bool ASPPawnCPP::Server_LightAttack_Validate()
+{
+	return true;
 }
 
 void ASPPawnCPP::Hit(float forceX, float forceY)
@@ -470,6 +511,7 @@ void ASPPawnCPP::FixPossitionError()
 void ASPPawnCPP::ApplyForces(float DeltaTime)
 {
 	FVector current_location;
+
 	if (HasAuthority()) {
 		if (Forces.X != 0.0f) {
 			current_location = GetActorLocation();
@@ -482,12 +524,24 @@ void ASPPawnCPP::ApplyForces(float DeltaTime)
 			current_location = GetActorLocation();
 			current_location.Z += Forces.Y * (DeltaTime / 1.0f);
 			if (!SetActorLocation(current_location, true, nullptr)) {
-				if (Forces.Y < 0) {
+				if (Forces.Y < 0) { 
 					WorkData.AirJumped = 0;
 				}
 				Forces.Y = 0.0f;
 			}
-		}		
+		}	
+
+		if (Forces.Y == 0.0f && !States.ON_GROUND) {
+			if (GroundUnderFeet()) {
+				States.ON_GROUND = true;
+				Actions.TouchGround.ExecuteIfBound();
+			}
+		}else if (Forces.Y != 0.0f && States.ON_GROUND) {
+			if (!GroundUnderFeet()) {
+				States.ON_GROUND = false;
+				Actions.LeaveGround.ExecuteIfBound();
+			}
+		}
 	}
 	else {
 		if (Client_Forces.X != 0.0f) {
