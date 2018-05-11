@@ -32,6 +32,7 @@ ASPPawnCPP::ASPPawnCPP()
 	WorkData.IsLocal = false;
 	WorkData.FacingRight = true;
 	WorkData.PossitionError = FVector(0.0f, 0.0f, 0.0f);
+	WorkData.HitStun = 0.0f;
 
 	Actions.delay = 0.0f;
 }
@@ -56,6 +57,18 @@ void ASPPawnCPP::Tick(float DeltaTime)
 		CurrentPosition = GetActorLocation();
 		Client_Forces = Forces;
 		GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, FString::SanitizeFloat(GetController()->PlayerState->ExactPing));
+		if (IsStun()) {
+			if (WorkData.HitStun > 20.0f) {
+				WorkData.HitStun -= DeltaTime;
+			}
+			else {
+				GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, "$@%$%@^$%^@$@%^$%@^$@^%$@^%$@%^$@%^$@%^@$%^");
+			}
+			if (WorkData.HitStun < 0.0f) {
+				WorkData.HitStun = 0.0f;
+				ClientHitStun = 0.0f;
+			}
+		}
 	}
 	else {
 		ApplyForces(DeltaTime);
@@ -64,6 +77,23 @@ void ASPPawnCPP::Tick(float DeltaTime)
 		Gravity(DeltaTime);
 		CalculateMovement();
 		//GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, WorkData.PossitionError.ToCompactString());
+		/*AController *check = GetController();
+		if (IsValid(check)) {
+			APlayerState *check2 = check->PlayerState;
+			if(IsValid(check2))
+			GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, FString::SanitizeFloat(check->PlayerState->Ping));
+		}*/
+		if (IsStun()) {
+			if (ClientHitStun > 20.0f) {
+				ClientHitStun -= DeltaTime;
+			}
+			else {
+				GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, "$@%$%@^$%^@$@%^$%@^$@^%$@^%$@%^$@%^$@%^@$%^");
+			}
+			if (ClientHitStun < 0.0f) {
+				ClientHitStun = 0.0f;
+			}
+		}
 	}
 }
 
@@ -103,6 +133,15 @@ void ASPPawnCPP::RepNot_UpdatePosition()
 	FVector current_location = GetActorLocation();
 	WorkData.PossitionError.X = CurrentPosition.X - current_location.X;
 	WorkData.PossitionError.Z = CurrentPosition.Z - current_location.Z;
+}
+
+void ASPPawnCPP::RepNot_UpdateHitStun()
+{
+	APlayerState*check= UGameplayStatics::GetPlayerController(GetWorld(), 0)->PlayerState;
+	if (IsValid(check) && ClientHitStun > 0.0f){
+		ClientHitStun -= (check->Ping / 1000.0f)* 4.0f;
+	}
+	
 }
 
 void ASPPawnCPP::HitPunch(bool FromClient, FVector2D ClientAxisPosition)
@@ -276,6 +315,7 @@ void ASPPawnCPP::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifeti
 	DOREPLIFETIME(ASPPawnCPP, WorkData);
 	DOREPLIFETIME(ASPPawnCPP, Client_Forces);
 	DOREPLIFETIME(ASPPawnCPP, StaticAttributes);
+	DOREPLIFETIME(ASPPawnCPP, ClientHitStun);
 }
 
 
@@ -320,22 +360,19 @@ void ASPPawnCPP::Jump()
 	}
 	else {
 		if (CanJump()) {
-			if (WorkData.AirJumped < Attributes.AirJumpAmount || GroundUnderFeet()
-				|| GroundNextToFeet(true) || GroundNextToFeet(false)) {
-				Server_Jump();
-			}
+			Server_Jump();
 		}
 	}
 }
 
 void ASPPawnCPP::MakeBusy()
 {
-	States.BUSY = true;
+	if (HasAuthority() && States.BUSY != true) States.BUSY = true;
 }
 
 void ASPPawnCPP::UnBusy()
 {
-	States.BUSY = false;
+	if (HasAuthority() && States.BUSY != false) States.BUSY = false;
 }
 
 void ASPPawnCPP::StopJump()
@@ -344,44 +381,196 @@ void ASPPawnCPP::StopJump()
 		if (CanStopJump()) {
 			if (States.JUMP) {
 				States.JUMP = false;
+				Actions.StopJump.ExecuteIfBound();
 			}
 			if (States.JUMP_LEFT_WALL) {
 				States.JUMP_LEFT_WALL = false;
+				Actions.StopJump.ExecuteIfBound();
 			}
 			if (States.JUMP_RIGHT_WALL) {
 				States.JUMP_RIGHT_WALL = false;
+				Actions.StopJump.ExecuteIfBound();
 			}
-			Actions.StopJump.ExecuteIfBound();
+			
 			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
 		}
 	}
 	else {
-		if (States.JUMP || States.JUMP_LEFT_WALL || States.JUMP_RIGHT_WALL) {
+		if (CanStopJump()) {
 			Server_StopJump();
 		}
 	}
 }
 
-void ASPPawnCPP::LightAttack()
+void ASPPawnCPP::LightAttack(int index)
 {
 	if (HasAuthority()) {
 		if (CanLightAttack()) {
-			Actions.LightAttack.ExecuteIfBound();
+			if (index == 0) {
+				FVector2D CurrentAxis = AxisPosition();
+				if ((CurrentAxis.X == 0.0f && CurrentAxis.Y == 0.0f) || (abs(CurrentAxis.X) > abs(CurrentAxis.Y))) {
+					Actions.LightAttack.ExecuteIfBound();
+				}
+				else {
+					if (CurrentAxis.Y > 0.0f) {
+						Actions.UpperLightAttack.ExecuteIfBound();
+					}
+					else {
+						Actions.DownLightAttack.ExecuteIfBound();
+					}
+				}
+			}
+			else if(index == 1) {
+				Actions.LightAttack.ExecuteIfBound();
+			}
+			else if (index == 2) {
+				Actions.UpperLightAttack.ExecuteIfBound();
+			}
+			else if (index == 3) {
+				Actions.DownLightAttack.ExecuteIfBound();
+			}
 		}
 	}
 	else {
 		if (CanLightAttack()) {
-			Server_LightAttack();
+			FVector2D CurrentAxis = AxisPosition();
+			if ((CurrentAxis.X == 0.0f && CurrentAxis.Y == 0.0f) || (abs(CurrentAxis.X) > abs(CurrentAxis.Y))) {
+				Server_LightAttack();
+			}
+			else {
+				if (CurrentAxis.Y > 0.0f) {
+					Server_UpperLightAttack();
+				}
+				else {
+					Server_DownLightAttack();
+				}
+			}
 		}
 	}
 }
 
+void ASPPawnCPP::StrongAttack()
+{
+	if (HasAuthority()) {
+		if (CanStrongAttack()) {
+			Actions.StrongAttack.ExecuteIfBound();
+		}
+	}
+	else {
+		if (CanStrongAttack()) {
+			Server_StrongAttack();
+		}	
+	}
+}
+
+void ASPPawnCPP::Server_StrongAttack_Implementation()
+{
+	StrongAttack();
+}
+
+bool ASPPawnCPP::Server_StrongAttack_Validate()
+{
+	return true;
+}
+
+void ASPPawnCPP::ReleaseStrongAttack()
+{
+	if (HasAuthority()) {
+		if (CanReleaseStrongAttack()) {
+			Actions.RealeaseStrongAttack.ExecuteIfBound();
+		}
+	}
+	else {
+		if (CanReleaseStrongAttack()) {
+			Server_ReleaseStrongAttack();
+		}
+	}
+}
+
+void ASPPawnCPP::Server_ReleaseStrongAttack_Implementation()
+{
+	ReleaseStrongAttack();
+}
+
+bool ASPPawnCPP::Server_ReleaseStrongAttack_Validate()
+{
+	return true;
+}
+
 void ASPPawnCPP::Server_LightAttack_Implementation()
 {
-	LightAttack();
+	LightAttack(1);
 }
 
 bool ASPPawnCPP::Server_LightAttack_Validate()
+{
+	return true;
+}
+
+void ASPPawnCPP::Server_UpperLightAttack_Implementation()
+{
+	LightAttack(2);
+}
+
+bool ASPPawnCPP::Server_UpperLightAttack_Validate()
+{
+	return true;
+}
+
+void ASPPawnCPP::Server_DownLightAttack_Implementation()
+{
+	LightAttack(3);
+}
+
+bool ASPPawnCPP::Server_DownLightAttack_Validate()
+{
+	return true;
+}
+
+void ASPPawnCPP::Defence()
+{
+	if (HasAuthority()) {
+		if (CanDefence()) {
+			Actions.Defence.ExecuteIfBound();
+		}
+	}
+	else {
+		if (CanDefence()) {
+			Server_Defence();
+		}
+	}
+}
+
+void ASPPawnCPP::Server_Defence_Implementation()
+{
+	Defence();
+}
+
+bool ASPPawnCPP::Server_Defence_Validate()
+{
+	return true;
+}
+
+void ASPPawnCPP::ReleaseDefence()
+{
+	if (HasAuthority()) {
+		if (CanReleaseDefence()) {
+			Actions.ReleaseDefence.ExecuteIfBound();
+		}
+	}
+	else {
+		if (CanReleaseDefence()) {
+			Server_ReleaseDefence();
+		}
+	}
+}
+
+void ASPPawnCPP::Server_ReleaseDefence_Implementation()
+{
+	ReleaseDefence();
+}
+
+bool ASPPawnCPP::Server_ReleaseDefence_Validate()
 {
 	return true;
 }
@@ -755,5 +944,172 @@ void ASPPawnCPP::CallDelayAction()
 		if (CanDelayAction()) {
 			Actions.DelayAction.ExecuteIfBound();
 		}
+	}
+}
+
+void ASPPawnCPP::GetHit(float hitstun, float damage, FVector knockback/*x/y are directions, z is force*/)
+{
+	if (HasAuthority()) {
+		if (WorkData.HitStun < 0.03f) {
+			WorkData.HitStun = hitstun
+				+ ((hitstun * (float)WorkData.Injuries) / 100.0f); //Injuries adds to hitstun;
+			WorkData.HitStun -= (WorkData.HitStun *(float)Attributes.Tenacity) / 100.0f; //Tenacity lowers hitstun
+			ClientHitStun = WorkData.HitStun;
+		}
+		WorkData.Injuries += ((damage * Attributes.Tenacity) / 100.0f);
+	}
+}
+
+bool ASPPawnCPP::IsStun()
+{
+	if (HasAuthority()) {
+		if (WorkData.HitStun > 0.0f) {
+			return true;
+		}
+		return false;
+	}
+	else {
+		if (ClientHitStun > 0.0f) {
+			return true;
+		}
+		return false;
+	}
+}
+
+bool ASPPawnCPP::CanMove() {
+	if (HasAuthority()) {
+		if (!IsStun() && !States.BUSY && States.CAN_MOVE) return true; return false;
+	}
+	else {
+		if (!IsStun() && !States.BUSY && States.CAN_MOVE) return true; return false;
+	}
+	
+}
+
+bool ASPPawnCPP::CanStopMove() { 
+	if (HasAuthority()) {
+		return true;
+	}
+	else {
+		return true;
+	}
+}
+
+bool ASPPawnCPP::CanDelayAction() {
+	if (HasAuthority()) {
+		if (!IsStun()) {
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
+	else {
+		if (!IsStun()) {
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
+}
+
+bool ASPPawnCPP::CanJump() { 
+	if (HasAuthority()) {
+		if (!IsStun() && !States.BUSY && States.CAN_JUMP) {
+			if (WorkData.AirJumped < Attributes.AirJumpAmount || GroundUnderFeet()
+				|| GroundNextToFeet(true) || GroundNextToFeet(false)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	else {
+		if (!IsStun() && !States.BUSY && States.CAN_JUMP) {
+			if (WorkData.AirJumped < Attributes.AirJumpAmount || GroundUnderFeet()
+				|| GroundNextToFeet(true) || GroundNextToFeet(false)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+}
+
+bool ASPPawnCPP::CanStopJump() { 
+	if (HasAuthority()) {
+		if (States.JUMP || States.JUMP_LEFT_WALL || States.JUMP_RIGHT_WALL) {
+			return true;
+		}
+		return false;
+	}
+	else {
+		if (States.JUMP || States.JUMP_LEFT_WALL || States.JUMP_RIGHT_WALL) {
+			return true;
+		}
+		return false;
+	}
+}
+
+bool ASPPawnCPP::CanLightAttack() { 
+	if (HasAuthority()) {
+		if (!IsStun() && !States.BUSY && States.CAN_LIGHT_ATTACK) return true; return false;
+	}
+	else {
+		if (!IsStun() && !States.BUSY && States.CAN_LIGHT_ATTACK) return true; return false;
+	}
+}
+
+bool ASPPawnCPP::CanStrongAttack() { 
+	if (HasAuthority()) {
+		if (!IsStun() && !States.BUSY && States.CAN_STRONG_ATTACK) return true; return false;
+	}
+	else {
+		if (!IsStun() && !States.BUSY && States.CAN_STRONG_ATTACK) return true; return false;
+	}
+}
+
+bool ASPPawnCPP::CanReleaseStrongAttack() { 
+	if (HasAuthority()) {
+		if (States.STRONG_ATTACK) {
+			return true;
+		}
+		return false;
+	}
+	else {
+		if (States.STRONG_ATTACK) {
+			return true;
+		}
+		return false;
+	}
+}
+
+bool ASPPawnCPP::CanDefence() { 
+	if (HasAuthority()) {
+		if (!IsStun() && !States.BUSY && States.CAN_DEFENCE) {
+			return true;
+		}
+		return false;
+	}
+	else {
+		if (!IsStun() && !States.BUSY && States.CAN_DEFENCE) {
+			return true;
+		}
+		return false;
+	}
+}
+
+bool ASPPawnCPP::CanReleaseDefence() {
+	if (HasAuthority()) {
+		if (States.DEFENCE) {
+			return true;
+		}
+		return false;
+	}
+	else {
+		if (States.DEFENCE) {
+			return true;
+		}
+		return false;
 	}
 }

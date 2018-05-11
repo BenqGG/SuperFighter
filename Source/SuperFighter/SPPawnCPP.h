@@ -6,6 +6,7 @@
 #include "Runtime/Core/Public/Templates/Function.h"
 #include "PaperFlipbookComponent.h"
 #include "Net/UnrealNetwork.h"
+#include <cmath>
 #include "SPHitBoxCPP.h"
 #include "SPPawnCPP.generated.h"
 
@@ -26,24 +27,63 @@ struct FSPPanActions {
 	FActionFunction Move;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 	FActionFunction StopMove;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
-	FActionFunction LightAttack;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
-	FActionFunction StrongAttack;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
-	FActionFunction RealeaseStrongAttack;
+	
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 	FActionFunction Jump;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 	FActionFunction StopJump;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 	FActionFunction TouchGround;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 	FActionFunction LeaveGround;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
-		FActionFunction Defence;
+	FActionFunction Defence;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
-		FActionFunction ReleaseDefence;
+	FActionFunction ReleaseDefence;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	FActionFunction Dash;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	FActionFunction AirDash;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	FActionFunction LightAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	FActionFunction UpperLightAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	FActionFunction DownLightAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	FActionFunction AirLightAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	FActionFunction AirUpperLightAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	FActionFunction AirDownLightAttack;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction RealeaseStrongAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	FActionFunction StrongAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction SideStrongAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction UpperStrongAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction DownStrongAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction AirStrongAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction AirSideStrongAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction AirUpperStrongAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction AirDownStrongAttack;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction RunLightAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction RunStrongAttack;
 };
 
 USTRUCT(BlueprintType)
@@ -77,6 +117,10 @@ struct FSPPawnAttributes {
 		float AirFriction = 0;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		float Gravity = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		//How much percent are injures lowered
+		float Tenacity = 0;
 };
 
 USTRUCT(BlueprintType)
@@ -119,6 +163,15 @@ struct FSPPawnStates {
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		bool CAN_STRONG_ATTACK = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		bool CAN_DEFENCE = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		bool DEFENCE = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		bool STRONG_ATTACK = false;
 };
 
 USTRUCT(BlueprintType)
@@ -135,8 +188,23 @@ struct FSPWorkData {
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		bool IsLocal;
+
 	UPROPERTY()
 		bool FacingRight;
+
+	
+		float HitStun = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		float ClientHitStun = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		//More injuried you are the further you fly after getting hit and how long hit stun last, 
+		//(SOME CHAPMIONS MAY USED TO SOME ADDITIONAL THINGS)
+		//You can not add to hit stun (you can only hit stun unstun enemy, if he is already hit stun then hit stun wont replenish
+		int Injuries = 0;
+
+
 };
 
 USTRUCT(BlueprintType)
@@ -183,6 +251,8 @@ protected:
 		FSPWorkData WorkData;
 	UPROPERTY(ReplicatedUsing = RepNot_UpdatePosition, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		FVector CurrentPosition;
+	UPROPERTY(ReplicatedUsing = RepNot_UpdateHitStun, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		float ClientHitStun;
 
 	//Apply Forces working on player
 	void ApplyForces(float DeltaTime);
@@ -239,23 +309,62 @@ public:
 		void UnBusy();
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
-		void SetCanJump(bool can) { States.CAN_JUMP = can; };
+		void SetCanJump(bool can) { if (HasAuthority() && States.CAN_JUMP != can) States.CAN_JUMP = can; };
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
-		void SetCanMove(bool can) { States.CAN_MOVE = can; };
+		void SetCanMove(bool can) { if (HasAuthority() && States.CAN_MOVE != can) States.CAN_MOVE = can; };
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
-		void SetCanLightAttack(bool can) { States.CAN_LIGHT_ATTACK = can; };
+		void SetCanLightAttack(bool can) { if (HasAuthority() && States.CAN_LIGHT_ATTACK != can) States.CAN_LIGHT_ATTACK = can; };
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void SetCanStrongAttack(bool can) { if(HasAuthority() && States.CAN_STRONG_ATTACK != can) States.CAN_STRONG_ATTACK = can; };
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void StopJump();
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
-		void LightAttack();
+		void LightAttack(int index = 0/*0 - check, 1 - normal, 2 - upper, 3 - down*/);
 
 	UFUNCTION(Server, unreliable, WithValidation)
 		//Server Will Only detect the jump that clients asks for
 		void Server_LightAttack();
+
+	UFUNCTION(Server, unreliable, WithValidation)
+		//Server Will Only detect the jump that clients asks for
+		void Server_UpperLightAttack();
+
+	UFUNCTION(Server, unreliable, WithValidation)
+		//Server Will Only detect the jump that clients asks for
+		void Server_DownLightAttack();
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void StrongAttack();
+
+	UFUNCTION(Server, unreliable, WithValidation)
+		//Server Will Only detect the jump that clients asks for
+		void Server_StrongAttack();
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void ReleaseStrongAttack();
+
+	UFUNCTION(Server, unreliable, WithValidation)
+		//Server Will Only detect the jump that clients asks for
+		void Server_ReleaseStrongAttack();
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void Defence();
+
+	UFUNCTION(Server, unreliable, WithValidation)
+		//Server Will Only detect the jump that clients asks for
+		void Server_Defence();
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void ReleaseDefence();
+
+	UFUNCTION(Server, unreliable, WithValidation)
+		//Server Will Only detect the jump that clients asks for
+		void Server_ReleaseDefence();
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void Hit(float forceX, float forcey);
@@ -279,6 +388,8 @@ public:
 
 	UFUNCTION()
 	void RepNot_UpdatePosition();
+	UFUNCTION()
+	void RepNot_UpdateHitStun();
 
 	UFUNCTION(Server, unreliable, WithValidation, BlueprintCallable, Category = SuperFighter)
 		void Server_Move(float AxisX);
@@ -316,6 +427,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void CallDelayAction();
 
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void GetHit(float hitstun, float damage, FVector knockback);
+
 	void CallActionFunction(ASPPawnCPP& o, PawnActions p) {
 		CALL_MEMBER_FN(o, p)();
 	}
@@ -323,10 +437,15 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
 		void ChangeAnimationRotation();
 
-	bool CanMove() { if (!States.BUSY && States.CAN_MOVE) return true; return false; }
-	bool CanStopMove() { return true; }
-	bool CanDelayAction() { return true; }
-	bool CanJump() { if (!States.BUSY && States.CAN_JUMP) return true; return false; }
-	bool CanStopJump() { return true; }
-	bool CanLightAttack() { if (!States.BUSY && States.CAN_LIGHT_ATTACK) return true; return false; }
+	bool IsStun();
+	bool CanMove();
+	bool CanStopMove();
+	bool CanDelayAction();
+	bool CanJump();
+	bool CanStopJump();
+	bool CanLightAttack();
+	bool CanStrongAttack();
+	bool CanReleaseStrongAttack();
+	bool CanDefence();
+	bool CanReleaseDefence();
 };
