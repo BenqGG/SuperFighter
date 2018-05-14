@@ -22,7 +22,7 @@ struct FSPPanActions {
 
 	float delay; 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
-	FActionFunction DelayAction;
+		FActionFunction DelayAction;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 	FActionFunction Move;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)

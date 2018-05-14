@@ -57,18 +57,6 @@ void ASPPawnCPP::Tick(float DeltaTime)
 		CurrentPosition = GetActorLocation();
 		Client_Forces = Forces;
 		GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, FString::SanitizeFloat(GetController()->PlayerState->ExactPing));
-		if (IsStun()) {
-			if (WorkData.HitStun > 20.0f) {
-				WorkData.HitStun -= DeltaTime;
-			}
-			else {
-				GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, "$@%$%@^$%^@$@%^$%@^$@^%$@^%$@%^$@%^$@%^@$%^");
-			}
-			if (WorkData.HitStun < 0.0f) {
-				WorkData.HitStun = 0.0f;
-				ClientHitStun = 0.0f;
-			}
-		}
 	}
 	else {
 		ApplyForces(DeltaTime);
@@ -83,17 +71,6 @@ void ASPPawnCPP::Tick(float DeltaTime)
 			if(IsValid(check2))
 			GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, FString::SanitizeFloat(check->PlayerState->Ping));
 		}*/
-		if (IsStun()) {
-			if (ClientHitStun > 20.0f) {
-				ClientHitStun -= DeltaTime;
-			}
-			else {
-				GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, "$@%$%@^$%^@$@%^$%@^$@^%$@^%$@%^$@%^$@%^@$%^");
-			}
-			if (ClientHitStun < 0.0f) {
-				ClientHitStun = 0.0f;
-			}
-		}
 	}
 }
 
@@ -409,25 +386,43 @@ void ASPPawnCPP::LightAttack(int index)
 			if (index == 0) {
 				FVector2D CurrentAxis = AxisPosition();
 				if ((CurrentAxis.X == 0.0f && CurrentAxis.Y == 0.0f) || (abs(CurrentAxis.X) > abs(CurrentAxis.Y))) {
-					Actions.LightAttack.ExecuteIfBound();
+					if (States.ON_GROUND)
+						Actions.LightAttack.ExecuteIfBound();
+					else
+						Actions.AirLightAttack.ExecuteIfBound();
 				}
 				else {
 					if (CurrentAxis.Y > 0.0f) {
-						Actions.UpperLightAttack.ExecuteIfBound();
+						if (States.ON_GROUND)
+							Actions.UpperLightAttack.ExecuteIfBound();
+						else
+							Actions.AirUpperLightAttack.ExecuteIfBound();
 					}
 					else {
-						Actions.DownLightAttack.ExecuteIfBound();
+						if (States.ON_GROUND)
+							Actions.DownLightAttack.ExecuteIfBound();
+						else 
+							Actions.AirDownLightAttack.ExecuteIfBound();
 					}
 				}
 			}
 			else if(index == 1) {
-				Actions.LightAttack.ExecuteIfBound();
+				if (States.ON_GROUND)
+					Actions.LightAttack.ExecuteIfBound();
+				else
+					Actions.AirLightAttack.ExecuteIfBound();
 			}
 			else if (index == 2) {
-				Actions.UpperLightAttack.ExecuteIfBound();
+				if (States.ON_GROUND)
+					Actions.UpperLightAttack.ExecuteIfBound();
+				else
+					Actions.AirUpperLightAttack.ExecuteIfBound();
 			}
 			else if (index == 3) {
-				Actions.DownLightAttack.ExecuteIfBound();
+				if (States.ON_GROUND)
+					Actions.DownLightAttack.ExecuteIfBound();
+				else
+					Actions.AirDownLightAttack.ExecuteIfBound();
 			}
 		}
 	}
