@@ -339,11 +339,23 @@ public:
 		void Server_DownLightAttack();
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
-		void StrongAttack();
+		void StrongAttack(int index = 0/*0 - check, 1 - strong attack, 2 - side , 3 - upper, 4 - down*/);
 
 	UFUNCTION(Server, unreliable, WithValidation)
 		//Server Will Only detect the jump that clients asks for
 		void Server_StrongAttack();
+
+	UFUNCTION(Server, unreliable, WithValidation)
+		//Server Will Only detect the jump that clients asks for
+		void Server_SideStrongAttack();
+
+	UFUNCTION(Server, unreliable, WithValidation)
+		//Server Will Only detect the jump that clients asks for
+		void Server_UpperStrongAttack();
+
+	UFUNCTION(Server, unreliable, WithValidation)
+		//Server Will Only detect the jump that clients asks for
+		void Server_DownStrongAttack();
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void ReleaseStrongAttack();

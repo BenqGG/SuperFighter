@@ -444,26 +444,121 @@ void ASPPawnCPP::LightAttack(int index)
 	}
 }
 
-void ASPPawnCPP::StrongAttack()
+void ASPPawnCPP::StrongAttack(int index)
 {
 	if (HasAuthority()) {
 		if (CanStrongAttack()) {
-			Actions.StrongAttack.ExecuteIfBound();
+			if (index == 0) {
+				FVector2D CurrentAxis = AxisPosition();
+				if (CurrentAxis.X == 0.0f && CurrentAxis.Y == 0.0f) {
+					if (States.ON_GROUND)
+						Actions.StrongAttack.ExecuteIfBound();
+					else
+						Actions.AirStrongAttack.ExecuteIfBound();
+				}
+				else if (abs(CurrentAxis.X) > abs(CurrentAxis.Y)) {
+					if (States.ON_GROUND)
+						Actions.SideStrongAttack.ExecuteIfBound();
+					else
+						Actions.AirSideStrongAttack.ExecuteIfBound();
+				}
+				else {
+					if (CurrentAxis.Y > 0.0f) {
+						if (States.ON_GROUND)
+							Actions.UpperStrongAttack.ExecuteIfBound();
+						else
+							Actions.AirUpperStrongAttack.ExecuteIfBound();
+					}
+					else {
+						if (States.ON_GROUND)
+							Actions.DownStrongAttack.ExecuteIfBound();
+						else
+							Actions.AirDownStrongAttack.ExecuteIfBound();
+					}
+				}
+			}
+			else if (index == 1) {
+				if (States.ON_GROUND)
+					Actions.StrongAttack.ExecuteIfBound();
+				else
+					Actions.AirStrongAttack.ExecuteIfBound();
+			}
+			else if (index == 2) {
+				if (States.ON_GROUND)
+					Actions.SideStrongAttack.ExecuteIfBound();
+				else
+					Actions.AirSideStrongAttack.ExecuteIfBound();
+			}
+			else if (index == 3) {
+				if (States.ON_GROUND)
+					Actions.UpperStrongAttack.ExecuteIfBound();
+				else
+					Actions.AirUpperStrongAttack.ExecuteIfBound();
+			}
+			else if (index == 4) {
+				if (States.ON_GROUND)
+					Actions.DownStrongAttack.ExecuteIfBound();
+				else
+					Actions.AirDownStrongAttack.ExecuteIfBound();
+			}
 		}
 	}
 	else {
 		if (CanStrongAttack()) {
-			Server_StrongAttack();
-		}	
-	}
+			FVector2D CurrentAxis = AxisPosition();
+			if (CurrentAxis.X == 0.0f && CurrentAxis.Y == 0.0f) {
+					Server_StrongAttack();
+			}
+			else if (abs(CurrentAxis.X) > abs(CurrentAxis.Y)) {
+				Server_SideStrongAttack();
+			}
+			else if(CurrentAxis.Y > 0.0f){
+				Server_UpperStrongAttack();
+			}
+			else {
+				Server_DownStrongAttack();
+			}
+		}
+	}	
 }
+
 
 void ASPPawnCPP::Server_StrongAttack_Implementation()
 {
-	StrongAttack();
+	StrongAttack(1);
 }
 
 bool ASPPawnCPP::Server_StrongAttack_Validate()
+{
+	return true;
+}
+
+void ASPPawnCPP::Server_SideStrongAttack_Implementation()
+{
+	StrongAttack(2);
+}
+
+bool ASPPawnCPP::Server_SideStrongAttack_Validate()
+{
+	return true;
+}
+
+void ASPPawnCPP::Server_UpperStrongAttack_Implementation()
+{
+	StrongAttack(3);
+}
+
+bool ASPPawnCPP::Server_UpperStrongAttack_Validate()
+{
+	return true;
+}
+
+void ASPPawnCPP::Server_DownStrongAttack_Implementation()
+{
+	StrongAttack(4);
+}
+
+bool ASPPawnCPP::Server_DownStrongAttack_Validate()
 {
 	return true;
 }
