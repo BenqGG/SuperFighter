@@ -755,11 +755,9 @@ void ASPPawnCPP::ReleaseDefence()
 		if (CanReleaseDefence()) {
 			Actions.ReleaseDefence.ExecuteIfBound();
 			States.DEFENCE = false;
-			if (WorkData.CurrentDefence < Attributes.Defence && !States.REPLENISHING_DEFENCE) {
-				ReplenishDefence();
-			}
-			else if(WorkData.CurrentDefence >= Attributes.Defence){
-				GetWorldTimerManager().ClearTimer(WorkData.DefenceTimer);
+			GetWorldTimerManager().ClearTimer(WorkData.DefenceTimer);
+			if (WorkData.CurrentDefence < Attributes.Defence) {
+				GetWorldTimerManager().SetTimer(WorkData.DefenceTimer, this, &ASPPawnCPP::ReplenishDefence, 1.0f, true);
 			}
 		}
 	}
@@ -910,6 +908,7 @@ void ASPPawnCPP::UpgradeStrongAttackMeter()
 void ASPPawnCPP::SetUpDefence()
 {
 	States.DEFENCE = true;
+	GetWorldTimerManager().ClearTimer(WorkData.DefenceTimer);
 	GetWorldTimerManager().SetTimer(WorkData.DefenceTimer, this, &ASPPawnCPP::UseDefence, 1.0f, true);
 }
 
@@ -928,23 +927,15 @@ void ASPPawnCPP::UseDefence()
 void ASPPawnCPP::ReplenishDefence()
 {
 	if (HasAuthority()) {
-		if (!States.REPLENISHING_DEFENCE && WorkData.CurrentDefence < Attributes.Defence) {
-			States.REPLENISHING_DEFENCE = true;
-			GetWorldTimerManager().SetTimer(WorkData.DefenceTimer, this, &ASPPawnCPP::ReplenishDefence, 1.0f, true);
+		if (WorkData.CurrentDefence < Attributes.Defence) {
+			WorkData.CurrentDefence += Attributes.Defence / 10.0f;
+			if (WorkData.CurrentDefence >= Attributes.Defence) {
+				WorkData.CurrentDefence = Attributes.Defence;
+				GetWorldTimerManager().ClearTimer(WorkData.DefenceTimer);
+			}
 		}
 		else {
-			if (WorkData.CurrentDefence < Attributes.Defence) {
-				WorkData.CurrentDefence += Attributes.Defence / 10.0f;
-				if (WorkData.CurrentDefence >= Attributes.Defence) {
-					WorkData.CurrentDefence = Attributes.Defence;
-					GetWorldTimerManager().ClearTimer(WorkData.DefenceTimer);
-					States.REPLENISHING_DEFENCE = false;
-				}
-			}
-			else {
-				GetWorldTimerManager().ClearTimer(WorkData.DefenceTimer);
-				States.REPLENISHING_DEFENCE = false;
-			}
+			GetWorldTimerManager().ClearTimer(WorkData.DefenceTimer);
 		}
 	}
 }
@@ -1219,8 +1210,9 @@ void ASPPawnCPP::GetHit(float hitstun, float damage, FVector knockback/*x/y are 
 				WorkData.HitStun *= 3.0f;
 				ClientHitStun = WorkData.HitStun;
 			}
-			if (WorkData.CurrentDefence < Attributes.Defence && !States.REPLENISHING_DEFENCE) {
-				ReplenishDefence();
+			if (WorkData.CurrentDefence < Attributes.Defence) {
+				GetWorldTimerManager().ClearTimer(WorkData.DefenceTimer);
+				GetWorldTimerManager().SetTimer(WorkData.DefenceTimer, this, &ASPPawnCPP::ReplenishDefence, 1.0f, true);
 			}
 		}
 		else {

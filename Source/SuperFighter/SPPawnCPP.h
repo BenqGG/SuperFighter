@@ -175,9 +175,6 @@ struct FSPPawnStates {
 		bool DEFENCE = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
-		bool REPLENISHING_DEFENCE = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		bool STRONG_ATTACK = false;
 };
 
