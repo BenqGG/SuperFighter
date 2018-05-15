@@ -33,6 +33,7 @@ ASPPawnCPP::ASPPawnCPP()
 	WorkData.FacingRight = true;
 	WorkData.PossitionError = FVector(0.0f, 0.0f, 0.0f);
 	WorkData.HitStun = 0.0f;
+	WorkData.CurrentDefence = 0.0f;
 
 	Actions.delay = 0.0f;
 }
@@ -57,7 +58,7 @@ void ASPPawnCPP::Tick(float DeltaTime)
 		CurrentPosition = GetActorLocation();
 		Client_Forces = Forces;
 		GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, FString::SanitizeFloat(GetController()->PlayerState->ExactPing));
-		GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, FString::SanitizeFloat((float)WorkData.StrongAttackMeter));
+		GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, FString::SanitizeFloat(WorkData.CurrentDefence));
 	}
 	else {
 		ApplyForces(DeltaTime);
@@ -625,26 +626,125 @@ bool ASPPawnCPP::Server_DownLightAttack_Validate()
 	return true;
 }
 
-void ASPPawnCPP::Defence()
+void ASPPawnCPP::Defence(int index)
 {
 	if (HasAuthority()) {
-		if (CanDefence()) {
-			Actions.Defence.ExecuteIfBound();
+		if (index == 0) {
+			FVector2D CurrentAxis = AxisPosition();
+			if (CurrentAxis.X == 0.0f && CurrentAxis.Y == 0.0f) {
+				if (CanDefence()) 
+				{	
+					SetUpDefence();
+					Actions.Defence.ExecuteIfBound();
+				}
+			}
+			else if (abs(CurrentAxis.X) >= abs(CurrentAxis.Y) ) {
+				if (CanDash()) {
+					if (States.ON_GROUND)
+						Actions.Dash.ExecuteIfBound();
+					else
+						Actions.AirDash.ExecuteIfBound();
+				}
+			}
+			else {
+				if (CurrentAxis.Y > 0.0f) {
+					if (CanDash()) {
+						if (States.ON_GROUND)
+							Actions.Dash.ExecuteIfBound();
+						else
+							Actions.AirDash.ExecuteIfBound();
+					}
+				}
+				else {
+					if (CanDash()) {
+						if (States.ON_GROUND)
+							Actions.SpotDodge.ExecuteIfBound();
+						else
+							Actions.AirDash.ExecuteIfBound();
+					}
+				}
+			}
+		}
+		else if (index == 1) {
+			if (CanDefence()) {
+				SetUpDefence();
+				Actions.Defence.ExecuteIfBound();
+			}
+		}
+		else if (index == 2 || index == 3) {
+			if (CanDash()) {
+				if(States.ON_GROUND)
+					Actions.Dash.ExecuteIfBound();
+				else
+					Actions.AirDash.ExecuteIfBound();
+			}
+		}
+		else if (index == 4) {
+			if (CanDash()) {
+				if (States.ON_GROUND)
+					Actions.SpotDodge.ExecuteIfBound();
+				else
+					Actions.AirDash.ExecuteIfBound();
+			}
 		}
 	}
 	else {
-		if (CanDefence()) {
-			Server_Defence();
+		FVector2D CurrentAxis = AxisPosition();
+		if (CurrentAxis.X == 0.0f && CurrentAxis.Y == 0.0f) {
+			if (CanDefence()) {
+				Server_Defence();
+			}
+		}
+		else if (abs(CurrentAxis.X) >= abs(CurrentAxis.Y) && CanDash()) {
+			Server_SideDash();
+		}
+		else {
+			if (CurrentAxis.Y > 0.0f) {
+				Server_UpDash();
+			}
+			else {
+				Server_DownDash();
+			}
 		}
 	}
 }
 
 void ASPPawnCPP::Server_Defence_Implementation()
 {
-	Defence();
+	Defence(1);
 }
 
 bool ASPPawnCPP::Server_Defence_Validate()
+{
+	return true;
+}
+
+void ASPPawnCPP::Server_SideDash_Implementation()
+{
+	Defence(2);
+}
+
+bool ASPPawnCPP::Server_SideDash_Validate()
+{
+	return true;
+}
+
+void ASPPawnCPP::Server_UpDash_Implementation()
+{
+	Defence(3);
+}
+
+bool ASPPawnCPP::Server_UpDash_Validate()
+{
+	return true;
+}
+
+void ASPPawnCPP::Server_DownDash_Implementation()
+{
+	Defence(4);
+}
+
+bool ASPPawnCPP::Server_DownDash_Validate()
 {
 	return true;
 }
@@ -654,6 +754,13 @@ void ASPPawnCPP::ReleaseDefence()
 	if (HasAuthority()) {
 		if (CanReleaseDefence()) {
 			Actions.ReleaseDefence.ExecuteIfBound();
+			States.DEFENCE = false;
+			if (WorkData.CurrentDefence < Attributes.Defence && !States.REPLENISHING_DEFENCE) {
+				ReplenishDefence();
+			}
+			else if(WorkData.CurrentDefence >= Attributes.Defence){
+				GetWorldTimerManager().ClearTimer(WorkData.DefenceTimer);
+			}
 		}
 	}
 	else {
@@ -799,6 +906,50 @@ void ASPPawnCPP::UpgradeStrongAttackMeter()
 {
 	WorkData.StrongAttackMeter++;
 }
+
+void ASPPawnCPP::SetUpDefence()
+{
+	States.DEFENCE = true;
+	GetWorldTimerManager().SetTimer(WorkData.DefenceTimer, this, &ASPPawnCPP::UseDefence, 1.0f, true);
+}
+
+void ASPPawnCPP::UseDefence()
+{
+	if (HasAuthority()) {
+		WorkData.CurrentDefence -= Attributes.Defence / 20.0f;
+		if (WorkData.CurrentDefence <= 0.0f) {
+			WorkData.CurrentDefence = 0.0f;
+			GetWorldTimerManager().ClearTimer(WorkData.DefenceTimer);
+			ReleaseDefence();
+		}
+	}
+}
+
+void ASPPawnCPP::ReplenishDefence()
+{
+	if (HasAuthority()) {
+		if (!States.REPLENISHING_DEFENCE && WorkData.CurrentDefence < Attributes.Defence) {
+			States.REPLENISHING_DEFENCE = true;
+			GetWorldTimerManager().SetTimer(WorkData.DefenceTimer, this, &ASPPawnCPP::ReplenishDefence, 1.0f, true);
+		}
+		else {
+			if (WorkData.CurrentDefence < Attributes.Defence) {
+				WorkData.CurrentDefence += Attributes.Defence / 10.0f;
+				if (WorkData.CurrentDefence >= Attributes.Defence) {
+					WorkData.CurrentDefence = Attributes.Defence;
+					GetWorldTimerManager().ClearTimer(WorkData.DefenceTimer);
+					States.REPLENISHING_DEFENCE = false;
+				}
+			}
+			else {
+				GetWorldTimerManager().ClearTimer(WorkData.DefenceTimer);
+				States.REPLENISHING_DEFENCE = false;
+			}
+		}
+	}
+}
+
+
 
 void ASPPawnCPP::ApplyForces(float DeltaTime)
 {
@@ -998,6 +1149,7 @@ float ASPPawnCPP::ValuePerSecond(float value, float deltaTime)
 void ASPPawnCPP::SetAttributes(FSPPawnAttributes new_attributes)
 {
 	Attributes = new_attributes;
+	WorkData.CurrentDefence = Attributes.Defence;
 }
 
 void ASPPawnCPP::Move(bool right)
@@ -1053,13 +1205,33 @@ void ASPPawnCPP::CallDelayAction()
 void ASPPawnCPP::GetHit(float hitstun, float damage, FVector knockback/*x/y are directions, z is force*/)
 {
 	if (HasAuthority()) {
-		if (WorkData.HitStun < 0.03f) {
-			WorkData.HitStun = hitstun
-				+ ((hitstun * (float)WorkData.Injuries) / 100.0f); //Injuries adds to hitstun;
-			WorkData.HitStun -= (WorkData.HitStun *(float)Attributes.Tenacity) / 100.0f; //Tenacity lowers hitstun
-			ClientHitStun = WorkData.HitStun;
+		float injuries = ((damage * Attributes.Tenacity) / 100.0f);
+		if (States.DEFENCE) {
+			if (WorkData.CurrentDefence >= injuries) {
+				WorkData.CurrentDefence -= injuries;
+				injuries = injuries / 10.0f;
+			}
+			else {
+				WorkData.CurrentDefence = 0.0f;
+				WorkData.HitStun = hitstun
+					+ ((hitstun * (float)WorkData.Injuries) / 100.0f); //Injuries adds to hitstun;
+				WorkData.HitStun -= (WorkData.HitStun *(float)Attributes.Tenacity) / 100.0f; //Tenacity lowers hitstun
+				WorkData.HitStun *= 3.0f;
+				ClientHitStun = WorkData.HitStun;
+			}
+			if (WorkData.CurrentDefence < Attributes.Defence && !States.REPLENISHING_DEFENCE) {
+				ReplenishDefence();
+			}
 		}
-		WorkData.Injuries += ((damage * Attributes.Tenacity) / 100.0f);
+		else {
+			if (WorkData.HitStun < 0.03f) {
+				WorkData.HitStun = hitstun
+					+ ((hitstun * (float)WorkData.Injuries) / 100.0f); //Injuries adds to hitstun;
+				WorkData.HitStun -= (WorkData.HitStun *(float)Attributes.Tenacity) / 100.0f; //Tenacity lowers hitstun
+				ClientHitStun = WorkData.HitStun;
+			}
+		}
+		WorkData.Injuries += injuries;
 	}
 }
 
@@ -1189,13 +1361,14 @@ bool ASPPawnCPP::CanReleaseStrongAttack() {
 
 bool ASPPawnCPP::CanDefence() { 
 	if (HasAuthority()) {
-		if (!IsStun() && !States.BUSY && States.CAN_DEFENCE) {
+		//You can not defend in air
+		if (!IsStun() && !States.BUSY && States.CAN_DEFENCE && States.ON_GROUND && WorkData.CurrentDefence > 0.0f) {
 			return true;
 		}
 		return false;
 	}
 	else {
-		if (!IsStun() && !States.BUSY && States.CAN_DEFENCE) {
+		if (!IsStun() && !States.BUSY && States.CAN_DEFENCE && States.ON_GROUND && WorkData.CurrentDefence > 0.0f) {
 			return true;
 		}
 		return false;
@@ -1211,6 +1384,22 @@ bool ASPPawnCPP::CanReleaseDefence() {
 	}
 	else {
 		if (States.DEFENCE) {
+			return true;
+		}
+		return false;
+	}
+}
+
+bool ASPPawnCPP::CanDash()
+{
+	if (HasAuthority()) {
+		if (States.CAN_DASH && !IsStun() && !States.BUSY) {
+			return true;
+		}
+		return false;
+	}
+	else {
+		if (States.CAN_DASH && !IsStun() && !States.BUSY) {
 			return true;
 		}
 		return false;

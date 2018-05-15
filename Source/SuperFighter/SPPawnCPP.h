@@ -47,6 +47,8 @@ struct FSPPanActions {
 	FActionFunction Dash;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 	FActionFunction AirDash;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	FActionFunction SpotDodge;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 	FActionFunction LightAttack;
@@ -116,6 +118,10 @@ struct FSPPawnAttributes {
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		//How much percent are injures lowered
 		float Tenacity = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		//How Much damage defence can get
+		float Defence = 0;
 };
 
 USTRUCT(BlueprintType)
@@ -163,7 +169,13 @@ struct FSPPawnStates {
 		bool CAN_DEFENCE = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		bool CAN_DASH = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		bool DEFENCE = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		bool REPLENISHING_DEFENCE = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		bool STRONG_ATTACK = false;
@@ -194,6 +206,10 @@ struct FSPWorkData {
 		float ClientHitStun = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		float CurrentDefence;
+	FTimerHandle DefenceTimer;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		//More injuried you are the further you fly after getting hit and how long hit stun last, 
 		//(SOME CHAPMIONS MAY USED TO SOME ADDITIONAL THINGS)
 		//You can not add to hit stun (you can only hit stun unstun enemy, if he is already hit stun then hit stun wont replenish
@@ -202,8 +218,6 @@ struct FSPWorkData {
 		FTimerHandle StrongAttackTimer;
 		//+1 every 0.1 second
 		int StrongAttackMeter = 0;
-
-
 };
 
 USTRUCT(BlueprintType)
@@ -279,6 +293,11 @@ protected:
 
 	void UpgradeStrongAttackMeter();
 
+	void SetUpDefence();
+
+	void UseDefence();
+	void ReplenishDefence();
+
 public:
 
 	// Sets default values for this pawn's properties
@@ -320,6 +339,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void SetCanStrongAttack(bool can) { if(HasAuthority() && States.CAN_STRONG_ATTACK != can) States.CAN_STRONG_ATTACK = can; };
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void SetCanDash(bool can) { if (HasAuthority() && States.CAN_DASH != can) States.CAN_DASH = can; };
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void StopJump();
@@ -366,11 +388,23 @@ public:
 		void Server_ReleaseStrongAttack();
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
-		void Defence();
+		void Defence(int index = 0/*0 - check, 1 - defend, 2 - sidedash, 3 - updash, 4 - downdash/spotdodge*/);
 
 	UFUNCTION(Server, unreliable, WithValidation)
 		//Server Will Only detect the jump that clients asks for
 		void Server_Defence();
+
+	UFUNCTION(Server, unreliable, WithValidation)
+		//Server Will Only detect the jump that clients asks for
+		void Server_SideDash();
+
+	UFUNCTION(Server, unreliable, WithValidation)
+		//Server Will Only detect the jump that clients asks for
+		void Server_UpDash();
+
+	UFUNCTION(Server, unreliable, WithValidation)
+		//Server Will Only detect the jump that clients asks for
+		void Server_DownDash();
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void ReleaseDefence();
@@ -461,4 +495,5 @@ public:
 	bool CanReleaseStrongAttack();
 	bool CanDefence();
 	bool CanReleaseDefence();
+	bool CanDash();
 };
