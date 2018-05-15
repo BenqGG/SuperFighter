@@ -57,6 +57,7 @@ void ASPPawnCPP::Tick(float DeltaTime)
 		CurrentPosition = GetActorLocation();
 		Client_Forces = Forces;
 		GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, FString::SanitizeFloat(GetController()->PlayerState->ExactPing));
+		GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, FString::SanitizeFloat((float)WorkData.StrongAttackMeter));
 	}
 	else {
 		ApplyForces(DeltaTime);
@@ -501,6 +502,11 @@ void ASPPawnCPP::StrongAttack(int index)
 				else
 					Actions.AirDownStrongAttack.ExecuteIfBound();
 			}
+
+			//GetWorldTimerManager().ClearTimer(WorkData.StrongAttackTimer);
+			States.STRONG_ATTACK = true;
+			WorkData.StrongAttackMeter = 0;
+			GetWorldTimerManager().SetTimer(WorkData.StrongAttackTimer, this, &ASPPawnCPP::UpgradeStrongAttackMeter, 0.1f, true);
 		}
 	}
 	else {
@@ -567,7 +573,9 @@ void ASPPawnCPP::ReleaseStrongAttack()
 {
 	if (HasAuthority()) {
 		if (CanReleaseStrongAttack()) {
+			States.STRONG_ATTACK = false;
 			Actions.RealeaseStrongAttack.ExecuteIfBound();
+			GetWorldTimerManager().ClearTimer(WorkData.StrongAttackTimer);
 		}
 	}
 	else {
@@ -785,6 +793,11 @@ void ASPPawnCPP::FixPossitionError()
 	
 
 	SetActorLocation(current_position, false);
+}
+
+void ASPPawnCPP::UpgradeStrongAttackMeter()
+{
+	WorkData.StrongAttackMeter++;
 }
 
 void ASPPawnCPP::ApplyForces(float DeltaTime)

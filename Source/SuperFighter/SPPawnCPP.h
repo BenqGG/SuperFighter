@@ -79,11 +79,6 @@ struct FSPPanActions {
 		FActionFunction AirUpperStrongAttack;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		FActionFunction AirDownStrongAttack;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
-		FActionFunction RunLightAttack;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
-		FActionFunction RunStrongAttack;
 };
 
 USTRUCT(BlueprintType)
@@ -203,6 +198,10 @@ struct FSPWorkData {
 		//(SOME CHAPMIONS MAY USED TO SOME ADDITIONAL THINGS)
 		//You can not add to hit stun (you can only hit stun unstun enemy, if he is already hit stun then hit stun wont replenish
 		int Injuries = 0;
+		
+		FTimerHandle StrongAttackTimer;
+		//+1 every 0.1 second
+		int StrongAttackMeter = 0;
 
 
 };
@@ -277,6 +276,8 @@ protected:
 	void Gravity(float DeltaTime);
 
 	void FixPossitionError();
+
+	void UpgradeStrongAttackMeter();
 
 public:
 
