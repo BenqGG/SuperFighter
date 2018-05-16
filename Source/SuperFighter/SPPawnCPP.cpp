@@ -640,6 +640,10 @@ void ASPPawnCPP::Defence(int index)
 			}
 			else if (abs(CurrentAxis.X) >= abs(CurrentAxis.Y) ) {
 				if (CanDash()) {
+					States.DASH = true;
+					States.SIDE_DASH = true;
+					GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, 0.5f, false);
+
 					if (States.ON_GROUND)
 						Actions.Dash.ExecuteIfBound();
 					else
@@ -649,6 +653,10 @@ void ASPPawnCPP::Defence(int index)
 			else {
 				if (CurrentAxis.Y > 0.0f) {
 					if (CanDash()) {
+						States.DASH = true;
+						States.UP_DASH = true;
+						GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, 0.5f, false);
+
 						if (States.ON_GROUND)
 							Actions.Dash.ExecuteIfBound();
 						else
@@ -657,10 +665,21 @@ void ASPPawnCPP::Defence(int index)
 				}
 				else {
 					if (CanDash()) {
-						if (States.ON_GROUND)
+						if (States.ON_GROUND) {
+							States.DASH = true;
+							States.SPOT_DODGE = true;
+							GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, 0.2f, false);
+
 							Actions.SpotDodge.ExecuteIfBound();
-						else
+						}
+							
+						else {
+							States.DASH = true;
+							States.DOWN_DASH = true;
+							GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, 0.5f, false);
+
 							Actions.AirDash.ExecuteIfBound();
+						}
 					}
 				}
 			}
@@ -673,6 +692,11 @@ void ASPPawnCPP::Defence(int index)
 		}
 		else if (index == 2 || index == 3) {
 			if (CanDash()) {
+				States.DASH = true;
+				if (index == 2) States.SIDE_DASH = true;
+				else States.UP_DASH = true;
+				GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, 0.5f, false);
+
 				if(States.ON_GROUND)
 					Actions.Dash.ExecuteIfBound();
 				else
@@ -681,10 +705,19 @@ void ASPPawnCPP::Defence(int index)
 		}
 		else if (index == 4) {
 			if (CanDash()) {
-				if (States.ON_GROUND)
+				if (States.ON_GROUND) {
+					States.DASH = true;
+					States.SPOT_DODGE = true;
 					Actions.SpotDodge.ExecuteIfBound();
-				else
+					GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, 0.2f, false);
+				}
+				else {
+					States.DASH = true;
+					States.DOWN_DASH = true;
 					Actions.AirDash.ExecuteIfBound();
+					GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, 0.5f, false);
+				}
+					
 			}
 		}
 	}
@@ -698,7 +731,7 @@ void ASPPawnCPP::Defence(int index)
 		else if (abs(CurrentAxis.X) >= abs(CurrentAxis.Y) && CanDash()) {
 			Server_SideDash();
 		}
-		else {
+		else if(CanDash()){
 			if (CurrentAxis.Y > 0.0f) {
 				Server_UpDash();
 			}
@@ -940,6 +973,13 @@ void ASPPawnCPP::ReplenishDefence()
 	}
 }
 
+void ASPPawnCPP::StopDash()
+{
+	if (HasAuthority()) {
+		if (States.DASH) States.DASH = false;
+	}
+}
+
 
 
 void ASPPawnCPP::ApplyForces(float DeltaTime)
@@ -1061,6 +1101,48 @@ void ASPPawnCPP::CalculateMovement()
 				Forces.X = -Attributes.JumpPower / StaticAttributes.WallJumpXModifier;
 			}
 		}
+
+		if (States.SIDE_DASH) {
+			States.SIDE_DASH = false;
+			if (WorkData.FacingRight) {
+				if (Forces.X > (-Attributes.Dash * 2.0f) && Forces.X <= 0.0f) {
+						Forces.X = Attributes.Dash / 1.5f;
+				}
+				else {
+					Forces.X += Attributes.Dash / 1.5f;
+				}
+			}
+			else {
+				if (Forces.X < (Attributes.Dash * 2.0f) && Forces.X >= 0.0f) {
+					Forces.X = -Attributes.Dash / 1.5f;
+				}
+				else {
+					Forces.X -= Attributes.Dash / 1.5f;
+				}
+			}
+		}
+		else if (States.UP_DASH) {
+			States.UP_DASH = false;
+			if (Forces.Y >(-Attributes.Dash * 2.0f) && Forces.Y <= 0.0f) {
+				Forces.Y = Attributes.Dash;
+			}
+			else {
+				Forces.Y += Attributes.Dash;
+			}
+		}
+		if (States.DOWN_DASH) {
+			States.DOWN_DASH = false;
+			if (Forces.Y < (Attributes.Dash * 2.0f) && Forces.Y >= 0.0f) {
+				Forces.Y = -Attributes.Dash;
+			}
+			else {
+				Forces.Y -= Attributes.Dash;
+			}
+		}
+		else if (States.SPOT_DODGE) {
+			States.SPOT_DODGE = false;
+		}
+
 	}
 	else {
 		if (States.MOVE_LEFT) {
@@ -1128,6 +1210,47 @@ void ASPPawnCPP::CalculateMovement()
 			if (Client_Forces.X > -Attributes.JumpPower / StaticAttributes.WallJumpXModifier) {
 				Client_Forces.X = -Attributes.JumpPower / StaticAttributes.WallJumpXModifier;
 			}
+		}
+
+		if (States.SIDE_DASH) {
+			States.SIDE_DASH = false;
+			if (WorkData.FacingRight) {
+				if (Forces.X > (-Attributes.Dash * 2.0f) && Forces.X <= 0.0f) {
+						Forces.X = Attributes.Dash;
+				}
+				else {
+					Forces.X += Attributes.Dash;
+				}
+			}
+			else {
+				if (Forces.X < (Attributes.Dash * 2.0f) && Forces.X >= 0.0f) {
+					Forces.X = -Attributes.Dash;
+				}
+				else {
+					Forces.X -= Attributes.Dash;
+				}
+			}
+		}
+		else if (States.UP_DASH) {
+			States.UP_DASH = false;
+			if (Forces.Y >(-Attributes.Dash * 2.0f) && Forces.Y <= 0.0f) {
+				Forces.Y = Attributes.Dash;
+			}
+			else {
+				Forces.Y += Attributes.Dash;
+			}
+		}
+		if (States.DOWN_DASH) {
+			States.DOWN_DASH = false;
+			if (Forces.Y < (Attributes.Dash * 2.0f) && Forces.Y >= 0.0f) {
+				Forces.Y = -Attributes.Dash;
+			}
+			else {
+				Forces.Y -= Attributes.Dash;
+			}
+		}
+		else if (States.SPOT_DODGE) {
+			States.SPOT_DODGE = false;
 		}
 	}
 }
@@ -1385,13 +1508,15 @@ bool ASPPawnCPP::CanReleaseDefence() {
 bool ASPPawnCPP::CanDash()
 {
 	if (HasAuthority()) {
-		if (States.CAN_DASH && !IsStun() && !States.BUSY) {
+		if (States.CAN_DASH && !States.DASH && !States.SIDE_DASH && !States.UP_DASH && !States.DOWN_DASH && !States.SPOT_DODGE
+			&& !IsStun() && !States.BUSY) {
 			return true;
 		}
 		return false;
 	}
 	else {
-		if (States.CAN_DASH && !IsStun() && !States.BUSY) {
+		if (States.CAN_DASH && !States.DASH && !States.SIDE_DASH && !States.UP_DASH && !States.DOWN_DASH && !States.SPOT_DODGE
+			&& !IsStun() && !States.BUSY) {
 			return true;
 		}
 		return false;

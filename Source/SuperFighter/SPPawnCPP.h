@@ -122,6 +122,10 @@ struct FSPPawnAttributes {
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		//How Much damage defence can get
 		float Defence = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		//Dash Speed
+		float Dash = 0;
 };
 
 USTRUCT(BlueprintType)
@@ -176,6 +180,21 @@ struct FSPPawnStates {
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		bool STRONG_ATTACK = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		bool DASH = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		bool SIDE_DASH = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		bool UP_DASH = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		bool DOWN_DASH = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		bool SPOT_DODGE = false;
 };
 
 USTRUCT(BlueprintType)
@@ -215,6 +234,8 @@ struct FSPWorkData {
 		FTimerHandle StrongAttackTimer;
 		//+1 every 0.1 second
 		int StrongAttackMeter = 0;
+
+		FTimerHandle DashTimer;
 };
 
 USTRUCT(BlueprintType)
@@ -294,6 +315,8 @@ protected:
 
 	void UseDefence();
 	void ReplenishDefence();
+
+	void StopDash();
 
 public:
 
