@@ -22,7 +22,7 @@ struct FSPPanActions {
 
 	float delay; 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
-		FActionFunction DelayAction;
+	FActionFunction DelayAction;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 	FActionFunction Move;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
@@ -102,7 +102,7 @@ struct FSPPawnAttributes {
 
 	GENERATED_BODY()
 
-		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		float MoveSpeed = 0.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		float JumpPower = 0.0f;
@@ -114,15 +114,12 @@ struct FSPPawnAttributes {
 		float AirFriction = 0;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		float Gravity = 0;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		//How much percent are injures lowered
 		float Tenacity = 0;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		//How Much damage defence can get
 		float Defence = 0;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		//Dash Speed
 		float Dash = 0;
@@ -182,6 +179,9 @@ struct FSPPawnStates {
 		bool STRONG_ATTACK = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		bool LIGHT_ATTACK = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		bool DASH = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
@@ -202,12 +202,23 @@ struct FSPWorkData {
 
 	GENERATED_BODY()
 
+		FTimerHandle JumpTimer;
+		FTimerHandle DefenceTimer;
+		FTimerHandle LightAttackTimer;
+		FTimerHandle StrongAttackTimer;
+		FTimerHandle DashTimer;
+
+		FVector PossitionError;
+		float HitStun = 0.0f;
+		//+1 every 0.1 second
+		int StrongAttackMeter = 0;
+
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		int AirJumped;
 
-		FTimerHandle JumpTimer;
-
-		FVector PossitionError;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		float ClientHitStun = 0.0f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		bool IsLocal;
@@ -215,27 +226,14 @@ struct FSPWorkData {
 	UPROPERTY()
 		bool FacingRight;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		float CurrentDefence = 0.0f;
 	
-		float HitStun = 0.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
-		float ClientHitStun = 0.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
-		float CurrentDefence;
-	FTimerHandle DefenceTimer;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		//More injuried you are the further you fly after getting hit and how long hit stun last, 
 		//(SOME CHAPMIONS MAY USED TO SOME ADDITIONAL THINGS)
 		//You can not add to hit stun (you can only hit stun unstun enemy, if he is already hit stun then hit stun wont replenish
 		int Injuries = 0;
-		
-		FTimerHandle StrongAttackTimer;
-		//+1 every 0.1 second
-		int StrongAttackMeter = 0;
-
-		FTimerHandle DashTimer;
 };
 
 USTRUCT(BlueprintType)
@@ -309,14 +307,23 @@ protected:
 
 	void FixPossitionError();
 
-	void UpgradeStrongAttackMeter();
-
 	void SetUpDefence();
-
+	void ClearDefence();
 	void UseDefence();
 	void ReplenishDefence();
 
+	void SetUpDash();
 	void StopDash();
+	void DashColdown();
+
+	void StartLightAttack(float time);
+	void EndLightAttack();
+
+	void SetUpStrongAttack();
+	void ClearStrongAttack();
+	void UpgradeStrongAttackMeter();
+
+	void ClearStatesWhileHit();
 
 public:
 

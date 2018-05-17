@@ -31,11 +31,38 @@ ASPPawnCPP::ASPPawnCPP()
 	WorkData.AirJumped = 0;
 	WorkData.IsLocal = false;
 	WorkData.FacingRight = true;
+	WorkData.HitStun = 0.0f;
+	WorkData.Injuries = 0;
+	WorkData.ClientHitStun = 0.0f;
+	WorkData.StrongAttackMeter = 0;
 	WorkData.PossitionError = FVector(0.0f, 0.0f, 0.0f);
 	WorkData.HitStun = 0.0f;
 	WorkData.CurrentDefence = 0.0f;
 
 	Actions.delay = 0.0f;
+
+	
+	States.MOVE_RIGHT = false;
+	States.MOVE_LEFT = false;
+	States.JUMP = false;
+	States.JUMP_LEFT_WALL = false;
+	States.JUMP_RIGHT_WALL = false;
+	States.ON_GROUND = false;
+	States.BUSY = false;
+	States.CAN_MOVE = true;
+	States.CAN_JUMP = true;
+	States.CAN_LIGHT_ATTACK = true;
+	States.CAN_STRONG_ATTACK = true;
+	States.CAN_DEFENCE = true;
+	States.CAN_DASH = true;
+	States.DEFENCE = false;
+	States.STRONG_ATTACK = false;
+	States.LIGHT_ATTACK = false;
+	States.DASH = false;
+	States.SIDE_DASH = false;
+	States.UP_DASH = false;
+	States.DOWN_DASH = false;
+	States.SPOT_DODGE = false;
 }
 
 // Called when the game starts or when spawned
@@ -120,8 +147,8 @@ void ASPPawnCPP::RepNot_UpdateHitStun()
 	if (IsValid(check) && ClientHitStun > 0.0f){
 		ClientHitStun -= (check->Ping / 1000.0f)* 4.0f;
 	}
-	
 }
+
 
 void ASPPawnCPP::HitPunch(bool FromClient, FVector2D ClientAxisPosition)
 {
@@ -202,7 +229,6 @@ void ASPPawnCPP::HitPosition(FVector2D AxisPosition, FVector& Position, FVector&
 	}
 }
 
-
 void ASPPawnCPP::ChangeAnimationRotation_Implementation()
 {
 	FRotator rotation(0.0f, 0.0f, 0.0f);
@@ -221,8 +247,6 @@ void ASPPawnCPP::SetUpIdle_Implementation()
 
 }
 
-
-
 void ASPPawnCPP::SpawnHitBox_Implementation(FSPHitBoxDetails l_details)
 {
 
@@ -235,7 +259,6 @@ FVector2D ASPPawnCPP::AxisPosition_Implementation()
 
 void ASPPawnCPP::Server_HitPunch_Implementation(FVector2D AxisPosition)
 {
-	
 	HitPunch(true, AxisPosition);
 }
 
@@ -243,6 +266,8 @@ bool ASPPawnCPP::Server_HitPunch_Validate(FVector2D AxisPosition)
 {
 	return true;
 }
+
+
 
 void ASPPawnCPP::Server_StopJump_Implementation()
 {
@@ -267,6 +292,7 @@ bool ASPPawnCPP::Server_Jump_Validate()
 void ASPPawnCPP::Server_Move_Implementation(float AxisX)
 {	
 	if (CanMove())
+	{
 		if (AxisX >= -1 && AxisX <= 1) {
 			if (AxisX == 0 && (States.MOVE_LEFT || States.MOVE_RIGHT)) {
 				StopMove();
@@ -278,6 +304,7 @@ void ASPPawnCPP::Server_Move_Implementation(float AxisX)
 				Move(false);
 			}
 		}
+	}
 }
 
 bool ASPPawnCPP::Server_Move_Validate(float AxisX)
@@ -303,34 +330,40 @@ void ASPPawnCPP::Jump()
 	if (HasAuthority()) {
 			if (CanJump()) {
 				if (GroundUnderFeet()) {
-					States.JUMP = true;
+					if(!States.JUMP) States.JUMP = true;
+					GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
 					GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
 					Actions.Jump.ExecuteIfBound();
 				}
 				else if (GroundNextToFeet(true)) {
-					States.JUMP_RIGHT_WALL = true;
+					if (!States.JUMP_RIGHT_WALL) States.JUMP_RIGHT_WALL = true;
+					GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
 					GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
 					Actions.Jump.ExecuteIfBound();
 				}
 				else if (GroundNextToFeet(false)) {
-					States.JUMP_LEFT_WALL = true;
+					if(!States.JUMP_LEFT_WALL) States.JUMP_LEFT_WALL = true;
+					GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
 					GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
 					Actions.Jump.ExecuteIfBound();
 				}
 				else if (WorkData.AirJumped < Attributes.AirJumpAmount) {
 					WorkData.AirJumped++;
 					if (States.MOVE_LEFT) {
-						States.JUMP_RIGHT_WALL = true;
+						if(!States.JUMP_RIGHT_WALL) States.JUMP_RIGHT_WALL = true;
+						GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
 						GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
 						Actions.Jump.ExecuteIfBound();
 					}
 					else if (States.MOVE_RIGHT) {
-						States.JUMP_LEFT_WALL = true;
+						if(!States.JUMP_LEFT_WALL) States.JUMP_LEFT_WALL = true;
+						GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
 						GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
 						Actions.Jump.ExecuteIfBound();
 					}
 					else {
-						States.JUMP = true;
+						if(!States.JUMP) States.JUMP = true;
+						GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
 						GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
 						Actions.Jump.ExecuteIfBound();
 					}
@@ -370,7 +403,6 @@ void ASPPawnCPP::StopJump()
 				States.JUMP_RIGHT_WALL = false;
 				Actions.StopJump.ExecuteIfBound();
 			}
-			
 			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
 		}
 	}
@@ -450,6 +482,9 @@ void ASPPawnCPP::StrongAttack(int index)
 {
 	if (HasAuthority()) {
 		if (CanStrongAttack()) {
+
+			SetUpStrongAttack();
+
 			if (index == 0) {
 				FVector2D CurrentAxis = AxisPosition();
 				if (CurrentAxis.X == 0.0f && CurrentAxis.Y == 0.0f) {
@@ -503,11 +538,6 @@ void ASPPawnCPP::StrongAttack(int index)
 				else
 					Actions.AirDownStrongAttack.ExecuteIfBound();
 			}
-
-			//GetWorldTimerManager().ClearTimer(WorkData.StrongAttackTimer);
-			States.STRONG_ATTACK = true;
-			WorkData.StrongAttackMeter = 0;
-			GetWorldTimerManager().SetTimer(WorkData.StrongAttackTimer, this, &ASPPawnCPP::UpgradeStrongAttackMeter, 0.1f, true);
 		}
 	}
 	else {
@@ -574,9 +604,8 @@ void ASPPawnCPP::ReleaseStrongAttack()
 {
 	if (HasAuthority()) {
 		if (CanReleaseStrongAttack()) {
-			States.STRONG_ATTACK = false;
+			ClearStrongAttack();
 			Actions.RealeaseStrongAttack.ExecuteIfBound();
-			GetWorldTimerManager().ClearTimer(WorkData.StrongAttackTimer);
 		}
 	}
 	else {
@@ -640,9 +669,8 @@ void ASPPawnCPP::Defence(int index)
 			}
 			else if (abs(CurrentAxis.X) >= abs(CurrentAxis.Y) ) {
 				if (CanDash()) {
-					States.DASH = true;
 					States.SIDE_DASH = true;
-					GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, 0.5f, false);
+					SetUpDash();
 
 					if (States.ON_GROUND)
 						Actions.Dash.ExecuteIfBound();
@@ -653,9 +681,8 @@ void ASPPawnCPP::Defence(int index)
 			else {
 				if (CurrentAxis.Y > 0.0f) {
 					if (CanDash()) {
-						States.DASH = true;
 						States.UP_DASH = true;
-						GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, 0.5f, false);
+						SetUpDash();
 
 						if (States.ON_GROUND)
 							Actions.Dash.ExecuteIfBound();
@@ -666,17 +693,15 @@ void ASPPawnCPP::Defence(int index)
 				else {
 					if (CanDash()) {
 						if (States.ON_GROUND) {
-							States.DASH = true;
 							States.SPOT_DODGE = true;
-							GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, 0.2f, false);
+							SetUpDash();
 
 							Actions.SpotDodge.ExecuteIfBound();
 						}
 							
 						else {
-							States.DASH = true;
 							States.DOWN_DASH = true;
-							GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, 0.5f, false);
+							SetUpDash();
 
 							Actions.AirDash.ExecuteIfBound();
 						}
@@ -692,10 +717,10 @@ void ASPPawnCPP::Defence(int index)
 		}
 		else if (index == 2 || index == 3) {
 			if (CanDash()) {
-				States.DASH = true;
 				if (index == 2) States.SIDE_DASH = true;
 				else States.UP_DASH = true;
-				GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, 0.5f, false);
+
+				SetUpDash();
 
 				if(States.ON_GROUND)
 					Actions.Dash.ExecuteIfBound();
@@ -706,16 +731,14 @@ void ASPPawnCPP::Defence(int index)
 		else if (index == 4) {
 			if (CanDash()) {
 				if (States.ON_GROUND) {
-					States.DASH = true;
 					States.SPOT_DODGE = true;
+					SetUpDash();
 					Actions.SpotDodge.ExecuteIfBound();
-					GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, 0.2f, false);
 				}
 				else {
-					States.DASH = true;
 					States.DOWN_DASH = true;
+					SetUpDash();
 					Actions.AirDash.ExecuteIfBound();
-					GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, 0.5f, false);
 				}
 					
 			}
@@ -785,10 +808,11 @@ bool ASPPawnCPP::Server_DownDash_Validate()
 void ASPPawnCPP::ReleaseDefence()
 {
 	if (HasAuthority()) {
-		if (CanReleaseDefence()) {
+		if (CanReleaseDefence())
+		{
+			ClearDefence();
 			Actions.ReleaseDefence.ExecuteIfBound();
-			States.DEFENCE = false;
-			GetWorldTimerManager().ClearTimer(WorkData.DefenceTimer);
+			
 			if (WorkData.CurrentDefence < Attributes.Defence) {
 				GetWorldTimerManager().SetTimer(WorkData.DefenceTimer, this, &ASPPawnCPP::ReplenishDefence, 1.0f, true);
 			}
@@ -938,11 +962,72 @@ void ASPPawnCPP::UpgradeStrongAttackMeter()
 	WorkData.StrongAttackMeter++;
 }
 
+void ASPPawnCPP::ClearStatesWhileHit()
+{
+	if (HasAuthority()) {
+		if(States.MOVE_RIGHT)States.MOVE_RIGHT = false;
+		if (States.MOVE_LEFT)States.MOVE_LEFT = false;
+		if (States.JUMP)States.JUMP = false;
+		if (States.JUMP_LEFT_WALL)States.JUMP_LEFT_WALL = false;
+		if (States.JUMP_RIGHT_WALL)States.JUMP_RIGHT_WALL = false;
+	
+	
+		if (!States.CAN_MOVE)States.CAN_MOVE = true;
+		if (!States.CAN_JUMP)States.CAN_JUMP = true;
+		if (!States.CAN_LIGHT_ATTACK)States.CAN_LIGHT_ATTACK = true;
+		if (!States.CAN_STRONG_ATTACK)States.CAN_STRONG_ATTACK = true;
+		if (!States.CAN_DEFENCE)States.CAN_DEFENCE = true;
+		
+		if (States.DEFENCE)States.DEFENCE = false;
+		if (States.STRONG_ATTACK)States.STRONG_ATTACK = false;
+		if (States.LIGHT_ATTACK)States.LIGHT_ATTACK = false;
+	}
+}
+
 void ASPPawnCPP::SetUpDefence()
 {
-	States.DEFENCE = true;
-	GetWorldTimerManager().ClearTimer(WorkData.DefenceTimer);
-	GetWorldTimerManager().SetTimer(WorkData.DefenceTimer, this, &ASPPawnCPP::UseDefence, 1.0f, true);
+	if (HasAuthority()) {
+		if (!States.DEFENCE) States.DEFENCE = true;
+
+		if (States.JUMP) {
+			States.JUMP = false;
+			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+		}
+		if (States.JUMP_LEFT_WALL) {
+			States.JUMP_LEFT_WALL = false;
+			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+		}
+		if (States.JUMP_RIGHT_WALL) {
+			States.JUMP_RIGHT_WALL = false;
+			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+		}
+
+		if (States.CAN_MOVE) States.CAN_MOVE = false;
+		if (States.CAN_JUMP) States.CAN_JUMP = false;
+		if (States.CAN_LIGHT_ATTACK) States.CAN_LIGHT_ATTACK = false;
+		if (States.CAN_STRONG_ATTACK) States.CAN_STRONG_ATTACK = false;
+		if (States.CAN_DEFENCE) States.CAN_DEFENCE = false;
+		if (States.CAN_DASH) States.CAN_DASH = false;
+
+		GetWorldTimerManager().ClearTimer(WorkData.DefenceTimer);
+		GetWorldTimerManager().SetTimer(WorkData.DefenceTimer, this, &ASPPawnCPP::UseDefence, 1.0f, true);
+	}
+}
+
+void ASPPawnCPP::ClearDefence()
+{
+	if (HasAuthority()) {
+		if (States.DEFENCE) States.DEFENCE = false;
+
+		if (!States.CAN_MOVE)			States.CAN_MOVE = true;
+		if (!States.CAN_JUMP)			States.CAN_JUMP = true;
+		if (!States.CAN_LIGHT_ATTACK)	States.CAN_LIGHT_ATTACK = true;
+		if (!States.CAN_STRONG_ATTACK)	States.CAN_STRONG_ATTACK = true;
+		if (!States.CAN_DEFENCE)		States.CAN_DEFENCE = true;
+		if (!States.CAN_DASH)			States.CAN_DASH = true;
+
+		GetWorldTimerManager().ClearTimer(WorkData.DefenceTimer);
+	}
 }
 
 void ASPPawnCPP::UseDefence()
@@ -973,10 +1058,166 @@ void ASPPawnCPP::ReplenishDefence()
 	}
 }
 
+void ASPPawnCPP::SetUpDash()
+{
+	if (HasAuthority()) {
+		
+		if (!States.DASH) States.DASH = true;
+
+		if (States.MOVE_RIGHT) States.MOVE_RIGHT = false;
+		if (States.MOVE_LEFT)States.MOVE_LEFT = false;
+		if (States.JUMP) {
+			States.JUMP = false;
+			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+		}
+		if (States.JUMP_LEFT_WALL) {
+			States.JUMP_LEFT_WALL = false;
+			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+		}
+		if (States.JUMP_RIGHT_WALL) {
+			States.JUMP_RIGHT_WALL = false;
+			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+		}
+
+		if (States.CAN_MOVE)				States.CAN_MOVE = false;
+		if (States.CAN_JUMP)				States.CAN_JUMP = false;
+		if (States.CAN_LIGHT_ATTACK)		States.CAN_LIGHT_ATTACK = false;
+		if (States.CAN_STRONG_ATTACK)		States.CAN_STRONG_ATTACK = false;
+		if (States.CAN_DEFENCE)				States.CAN_DEFENCE = false;
+		if (States.CAN_DASH)				States.CAN_DASH = false;
+
+		if (States.SPOT_DODGE) {
+			GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, 0.2f, false);
+		}
+		else {
+			GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, 0.5f, false);
+		}
+	}
+}
+
 void ASPPawnCPP::StopDash()
 {
 	if (HasAuthority()) {
 		if (States.DASH) States.DASH = false;
+
+		if (!States.CAN_MOVE)				States.CAN_MOVE = true;
+		if (!States.CAN_JUMP)				States.CAN_JUMP = true;
+		if (!States.CAN_LIGHT_ATTACK)		States.CAN_LIGHT_ATTACK = true;
+		if (!States.CAN_STRONG_ATTACK)		States.CAN_STRONG_ATTACK = true;
+		if (!States.CAN_DEFENCE)			States.CAN_DEFENCE = true;
+
+		if (States.CAN_DASH) States.CAN_DASH = false;
+		
+		GetWorldTimerManager().ClearTimer(WorkData.DashTimer);
+		GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::DashColdown, 1.0f, false);
+
+	}
+}
+
+void ASPPawnCPP::DashColdown()
+{
+	if (HasAuthority()) {
+		if (!States.CAN_DASH) States.CAN_DASH = true;
+		GetWorldTimerManager().ClearTimer(WorkData.DashTimer);
+	}
+}
+
+void ASPPawnCPP::StartLightAttack(float time)
+{
+	if (HasAuthority()) {
+		if (!States.LIGHT_ATTACK) States.LIGHT_ATTACK = true;
+
+		if (States.MOVE_RIGHT) States.MOVE_RIGHT = false;
+		if (States.MOVE_LEFT)States.MOVE_LEFT = false;
+		if (States.JUMP) {
+			States.JUMP = false;
+			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+		}
+		if (States.JUMP_LEFT_WALL) {
+			States.JUMP_LEFT_WALL = false;
+			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+		}
+		if (States.JUMP_RIGHT_WALL) {
+			States.JUMP_RIGHT_WALL = false;
+			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+		}
+
+		if (States.CAN_MOVE)			States.CAN_MOVE = false;
+		if (States.CAN_JUMP)			States.CAN_JUMP = false;
+		if (States.CAN_DEFENCE)			States.CAN_DEFENCE = false;
+		if (States.CAN_DASH)			States.CAN_DASH = false;
+		if (States.CAN_STRONG_ATTACK)	States.CAN_STRONG_ATTACK = false;
+		if (States.CAN_LIGHT_ATTACK)	States.CAN_LIGHT_ATTACK = false;
+
+		GetWorldTimerManager().ClearTimer(WorkData.LightAttackTimer);
+		GetWorldTimerManager().SetTimer(WorkData.LightAttackTimer, this, &ASPPawnCPP::EndLightAttack, time, false);
+	}
+}
+
+void ASPPawnCPP::EndLightAttack()
+{
+	if (HasAuthority()) {
+		if (States.LIGHT_ATTACK) States.LIGHT_ATTACK = false;
+
+		if (!States.CAN_MOVE)			States.CAN_MOVE = true;
+		if (!States.CAN_JUMP)			States.CAN_JUMP = true;
+		if (!States.CAN_DEFENCE)		States.CAN_DEFENCE = true;
+		if (!States.CAN_DASH)			States.CAN_DASH = true;
+		if (!States.CAN_STRONG_ATTACK)	States.CAN_STRONG_ATTACK = true;
+		if (!States.CAN_LIGHT_ATTACK)	States.CAN_LIGHT_ATTACK = true;
+
+		GetWorldTimerManager().ClearTimer(WorkData.LightAttackTimer);
+	}
+}
+
+void ASPPawnCPP::SetUpStrongAttack()
+{
+	if (HasAuthority()) {
+		if (!States.STRONG_ATTACK) States.STRONG_ATTACK = true;
+
+		if(States.MOVE_RIGHT) States.MOVE_RIGHT = false;
+		if(States.MOVE_LEFT )States.MOVE_LEFT = false;
+		if (States.JUMP) {
+			States.JUMP = false;
+			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+		} 
+		if (States.JUMP_LEFT_WALL) {
+			States.JUMP_LEFT_WALL = false;
+			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+		}
+		if (States.JUMP_RIGHT_WALL) {
+			States.JUMP_RIGHT_WALL = false;
+			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+		}
+		if(States.LIGHT_ATTACK) States.LIGHT_ATTACK = false;
+		
+
+		if(States.CAN_MOVE) States.CAN_MOVE = false;
+		if(States.CAN_JUMP) States.CAN_JUMP = false;
+		if(States.CAN_LIGHT_ATTACK) States.CAN_LIGHT_ATTACK = false;
+		if(States.CAN_STRONG_ATTACK) States.CAN_STRONG_ATTACK = false;
+		if(States.CAN_DEFENCE) States.CAN_DEFENCE = false;
+		if(States.CAN_DASH) States.CAN_DASH  = false;
+		
+		WorkData.StrongAttackMeter = 0;
+		GetWorldTimerManager().ClearTimer(WorkData.StrongAttackTimer);
+		GetWorldTimerManager().SetTimer(WorkData.StrongAttackTimer, this, &ASPPawnCPP::UpgradeStrongAttackMeter, 0.1f, true);
+	}
+}
+
+void ASPPawnCPP::ClearStrongAttack()
+{
+	if (HasAuthority()) {
+		if (States.STRONG_ATTACK) States.STRONG_ATTACK = false;
+
+		if (!States.CAN_MOVE)			States.CAN_MOVE = true;
+		if (!States.CAN_JUMP)			States.CAN_JUMP = true;
+		if (!States.CAN_LIGHT_ATTACK)	States.CAN_LIGHT_ATTACK = true;
+		if (!States.CAN_STRONG_ATTACK)	States.CAN_STRONG_ATTACK = true;
+		if (!States.CAN_DEFENCE)		States.CAN_DEFENCE = true;
+		if (!States.CAN_DASH)			States.CAN_DASH = true;
+
+		GetWorldTimerManager().ClearTimer(WorkData.StrongAttackTimer);
 	}
 }
 
@@ -1271,14 +1512,14 @@ void ASPPawnCPP::Move(bool right)
 	if (HasAuthority()) {
 		if (CanMove()) {
 			if (right) {
-				States.MOVE_LEFT = false;
-				States.MOVE_RIGHT = true;
-				WorkData.FacingRight = true;
+				if(States.MOVE_LEFT) States.MOVE_LEFT = false;
+				if(!States.MOVE_RIGHT) States.MOVE_RIGHT  = true;
+				if(!WorkData.FacingRight)WorkData.FacingRight = true;
 			}
 			else {
-				States.MOVE_LEFT = true;
-				States.MOVE_RIGHT = false;
-				WorkData.FacingRight = false;
+				if (!States.MOVE_LEFT) States.MOVE_LEFT = true;
+				if (States.MOVE_RIGHT) States.MOVE_RIGHT = false;
+				if (WorkData.FacingRight)WorkData.FacingRight = false;
 			}
 			Actions.Move.ExecuteIfBound();
 		}
@@ -1289,8 +1530,8 @@ void ASPPawnCPP::StopMove()
 {
 	if (HasAuthority()) {
 		if (CanStopMove()) {
-			States.MOVE_LEFT = false;
-			States.MOVE_RIGHT = false;
+			if (States.MOVE_LEFT) States.MOVE_LEFT = false;
+			if (States.MOVE_RIGHT) States.MOVE_RIGHT = false;
 			Actions.StopMove.ExecuteIfBound();
 		}
 	}
@@ -1332,6 +1573,7 @@ void ASPPawnCPP::GetHit(float hitstun, float damage, FVector knockback/*x/y are 
 				WorkData.HitStun -= (WorkData.HitStun *(float)Attributes.Tenacity) / 100.0f; //Tenacity lowers hitstun
 				WorkData.HitStun *= 3.0f;
 				ClientHitStun = WorkData.HitStun;
+				ClearStatesWhileHit();
 			}
 			if (WorkData.CurrentDefence < Attributes.Defence) {
 				GetWorldTimerManager().ClearTimer(WorkData.DefenceTimer);
@@ -1344,6 +1586,7 @@ void ASPPawnCPP::GetHit(float hitstun, float damage, FVector knockback/*x/y are 
 					+ ((hitstun * (float)WorkData.Injuries) / 100.0f); //Injuries adds to hitstun;
 				WorkData.HitStun -= (WorkData.HitStun *(float)Attributes.Tenacity) / 100.0f; //Tenacity lowers hitstun
 				ClientHitStun = WorkData.HitStun;
+				ClearStatesWhileHit();
 			}
 		}
 		WorkData.Injuries += injuries;
@@ -1368,20 +1611,34 @@ bool ASPPawnCPP::IsStun()
 
 bool ASPPawnCPP::CanMove() {
 	if (HasAuthority()) {
-		if (!IsStun() && !States.BUSY && States.CAN_MOVE) return true; return false;
+		if (!IsStun() && !States.BUSY && States.CAN_MOVE && !States.DASH && !States.DEFENCE 
+			&& !States.LIGHT_ATTACK && !States.STRONG_ATTACK) 
+			return true;
+		else 
+			return false;
 	}
 	else {
-		if (!IsStun() && !States.BUSY && States.CAN_MOVE) return true; return false;
+		if (!IsStun() && !States.BUSY && States.CAN_MOVE && !States.DASH && !States.DEFENCE
+			&& !States.LIGHT_ATTACK && !States.STRONG_ATTACK) 
+			return true;
+		else 
+			return false;
 	}
 	
 }
 
 bool ASPPawnCPP::CanStopMove() { 
 	if (HasAuthority()) {
-		return true;
+		if (States.MOVE_LEFT || States.MOVE_RIGHT)
+			return true;
+		else
+			return false;
 	}
 	else {
-		return true;
+		if (States.MOVE_LEFT || States.MOVE_RIGHT)
+			return true; 
+		else
+			return false;
 	}
 }
 
@@ -1406,22 +1663,27 @@ bool ASPPawnCPP::CanDelayAction() {
 
 bool ASPPawnCPP::CanJump() { 
 	if (HasAuthority()) {
-		if (!IsStun() && !States.BUSY && States.CAN_JUMP) {
+		if (!IsStun() && !States.BUSY && States.CAN_JUMP && !States.DEFENCE && !States.DASH
+			&& !States.LIGHT_ATTACK && !States.STRONG_ATTACK) {
 			if (WorkData.AirJumped < Attributes.AirJumpAmount || GroundUnderFeet()
 				|| GroundNextToFeet(true) || GroundNextToFeet(false)) {
 				return true;
 			}
+			else return false;
 		}
-		return false;
+		else
+			return false;
 	}
 	else {
-		if (!IsStun() && !States.BUSY && States.CAN_JUMP) {
-			if (WorkData.AirJumped < Attributes.AirJumpAmount || GroundUnderFeet()
-				|| GroundNextToFeet(true) || GroundNextToFeet(false)) {
+		if (!IsStun() && !States.BUSY && States.CAN_JUMP && !States.DEFENCE && !States.DASH
+			&& !States.LIGHT_ATTACK && !States.STRONG_ATTACK) {
+			if (WorkData.AirJumped < Attributes.AirJumpAmount) {
 				return true;
 			}
+			else return false;
 		}
-		return false;
+		else
+			return false;
 	}
 	
 }
@@ -1443,19 +1705,35 @@ bool ASPPawnCPP::CanStopJump() {
 
 bool ASPPawnCPP::CanLightAttack() { 
 	if (HasAuthority()) {
-		if (!IsStun() && !States.BUSY && States.CAN_LIGHT_ATTACK) return true; return false;
+		if (!IsStun() && !States.BUSY && States.CAN_LIGHT_ATTACK && !States.DEFENCE && !States.DASH
+			 && !States.STRONG_ATTACK)
+			return true; 
+		else 
+			return false;
 	}
 	else {
-		if (!IsStun() && !States.BUSY && States.CAN_LIGHT_ATTACK) return true; return false;
+		if (!IsStun() && !States.BUSY && States.CAN_LIGHT_ATTACK && !States.DEFENCE && !States.DASH
+			&& !States.STRONG_ATTACK)
+			return true;
+		else
+			return false;
 	}
 }
 
 bool ASPPawnCPP::CanStrongAttack() { 
 	if (HasAuthority()) {
-		if (!IsStun() && !States.BUSY && States.CAN_STRONG_ATTACK) return true; return false;
+		if (!IsStun() && !States.BUSY && States.CAN_STRONG_ATTACK && !States.DEFENCE && !States.DASH
+			&& !States.STRONG_ATTACK)
+			return true;
+		else
+			return false;
 	}
 	else {
-		if (!IsStun() && !States.BUSY && States.CAN_STRONG_ATTACK) return true; return false;
+		if (!IsStun() && !States.BUSY && States.CAN_STRONG_ATTACK && !States.DEFENCE && !States.DASH
+			&& !States.STRONG_ATTACK)
+			return true;
+		else
+			return false;
 	}
 }
 
@@ -1477,16 +1755,20 @@ bool ASPPawnCPP::CanReleaseStrongAttack() {
 bool ASPPawnCPP::CanDefence() { 
 	if (HasAuthority()) {
 		//You can not defend in air
-		if (!IsStun() && !States.BUSY && States.CAN_DEFENCE && States.ON_GROUND && WorkData.CurrentDefence > 0.0f) {
+		if (!IsStun() && !States.BUSY && States.CAN_DEFENCE && States.ON_GROUND && WorkData.CurrentDefence > 0.0f 
+			&& !States.DEFENCE && !States.DASH && !States.LIGHT_ATTACK && !States.STRONG_ATTACK) {
 			return true;
 		}
-		return false;
+		else 
+			return false;
 	}
 	else {
-		if (!IsStun() && !States.BUSY && States.CAN_DEFENCE && States.ON_GROUND && WorkData.CurrentDefence > 0.0f) {
+		if (!IsStun() && !States.BUSY && States.CAN_DEFENCE && !States.DEFENCE 
+			&& !States.DASH && !States.LIGHT_ATTACK && !States.STRONG_ATTACK) {
 			return true;
 		}
-		return false;
+		else
+			return false;
 	}
 }
 
@@ -1508,17 +1790,19 @@ bool ASPPawnCPP::CanReleaseDefence() {
 bool ASPPawnCPP::CanDash()
 {
 	if (HasAuthority()) {
-		if (States.CAN_DASH && !States.DASH && !States.SIDE_DASH && !States.UP_DASH && !States.DOWN_DASH && !States.SPOT_DODGE
-			&& !IsStun() && !States.BUSY) {
+		if (!IsStun() && !States.BUSY && States.CAN_DASH && !States.DASH && !States.LIGHT_ATTACK 
+			&& !States.STRONG_ATTACK && !States.DEFENCE) {
 			return true;
 		}
-		return false;
+		else
+			return false;
 	}
 	else {
-		if (States.CAN_DASH && !States.DASH && !States.SIDE_DASH && !States.UP_DASH && !States.DOWN_DASH && !States.SPOT_DODGE
-			&& !IsStun() && !States.BUSY) {
+		if (!IsStun() && !States.BUSY && States.CAN_DASH && !States.DASH && !States.LIGHT_ATTACK
+			&& !States.STRONG_ATTACK && !States.DEFENCE) {
 			return true;
 		}
-		return false;
+		else
+			return false;
 	}
 }
