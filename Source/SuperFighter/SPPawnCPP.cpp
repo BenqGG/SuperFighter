@@ -85,7 +85,6 @@ void ASPPawnCPP::Tick(float DeltaTime)
 		CurrentPosition = GetActorLocation();
 		Client_Forces = Forces;
 		GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, FString::SanitizeFloat(GetController()->PlayerState->ExactPing));
-		GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, FString::SanitizeFloat(WorkData.CurrentDefence));
 	}
 	else {
 		ApplyForces(DeltaTime);
@@ -419,7 +418,11 @@ void ASPPawnCPP::LightAttack(int index)
 		if (CanLightAttack()) {
 			if (index == 0) {
 				FVector2D CurrentAxis = AxisPosition();
-				if ((CurrentAxis.X == 0.0f && CurrentAxis.Y == 0.0f) || (abs(CurrentAxis.X) > abs(CurrentAxis.Y))) {
+				FVector2D AbsCurrentAxis;
+				if (CurrentAxis.X < 0) AbsCurrentAxis.X = CurrentAxis.X * -1; else AbsCurrentAxis.X = CurrentAxis.X;
+				if (CurrentAxis.Y < 0) AbsCurrentAxis.Y = CurrentAxis.Y * -1; else AbsCurrentAxis.Y = CurrentAxis.Y;
+
+				if ((CurrentAxis.X == 0.0f && CurrentAxis.Y == 0.0f) || (AbsCurrentAxis.X > AbsCurrentAxis.Y)) {
 					if (States.ON_GROUND)
 						Actions.LightAttack.ExecuteIfBound();
 					else
@@ -463,7 +466,11 @@ void ASPPawnCPP::LightAttack(int index)
 	else {
 		if (CanLightAttack()) {
 			FVector2D CurrentAxis = AxisPosition();
-			if ((CurrentAxis.X == 0.0f && CurrentAxis.Y == 0.0f) || (abs(CurrentAxis.X) > abs(CurrentAxis.Y))) {
+			FVector2D AbsCurrentAxis;
+			if (CurrentAxis.X < 0) AbsCurrentAxis.X = CurrentAxis.X * -1; else AbsCurrentAxis.X = CurrentAxis.X;
+			if (CurrentAxis.Y < 0) AbsCurrentAxis.Y = CurrentAxis.Y * -1; else AbsCurrentAxis.Y = CurrentAxis.Y;
+
+			if ((CurrentAxis.X == 0.0f && CurrentAxis.Y == 0.0f) || (AbsCurrentAxis.X > AbsCurrentAxis.Y)) {
 				Server_LightAttack();
 			}
 			else {
@@ -487,13 +494,17 @@ void ASPPawnCPP::StrongAttack(int index)
 
 			if (index == 0) {
 				FVector2D CurrentAxis = AxisPosition();
+				FVector2D AbsCurrentAxis;
+				if (CurrentAxis.X < 0) AbsCurrentAxis.X = CurrentAxis.X * -1; else AbsCurrentAxis.X = CurrentAxis.X;
+				if (CurrentAxis.Y < 0) AbsCurrentAxis.Y = CurrentAxis.Y * -1; else AbsCurrentAxis.Y = CurrentAxis.Y;
+
 				if (CurrentAxis.X == 0.0f && CurrentAxis.Y == 0.0f) {
 					if (States.ON_GROUND)
 						Actions.StrongAttack.ExecuteIfBound();
 					else
 						Actions.AirStrongAttack.ExecuteIfBound();
 				}
-				else if (abs(CurrentAxis.X) > abs(CurrentAxis.Y)) {
+				else if (AbsCurrentAxis.X > AbsCurrentAxis.Y) {
 					if (States.ON_GROUND)
 						Actions.SideStrongAttack.ExecuteIfBound();
 					else
@@ -543,10 +554,14 @@ void ASPPawnCPP::StrongAttack(int index)
 	else {
 		if (CanStrongAttack()) {
 			FVector2D CurrentAxis = AxisPosition();
+			FVector2D AbsCurrentAxis;
+			if (CurrentAxis.X < 0) AbsCurrentAxis.X = CurrentAxis.X * -1; else AbsCurrentAxis.X = CurrentAxis.X;
+			if (CurrentAxis.Y < 0) AbsCurrentAxis.Y = CurrentAxis.Y * -1; else AbsCurrentAxis.Y = CurrentAxis.Y;
+
 			if (CurrentAxis.X == 0.0f && CurrentAxis.Y == 0.0f) {
 					Server_StrongAttack();
 			}
-			else if (abs(CurrentAxis.X) > abs(CurrentAxis.Y)) {
+			else if (AbsCurrentAxis.X > AbsCurrentAxis.Y) {
 				Server_SideStrongAttack();
 			}
 			else if(CurrentAxis.Y > 0.0f){
@@ -660,6 +675,10 @@ void ASPPawnCPP::Defence(int index)
 	if (HasAuthority()) {
 		if (index == 0) {
 			FVector2D CurrentAxis = AxisPosition();
+			FVector2D AbsCurrentAxis;
+			if (CurrentAxis.X < 0) AbsCurrentAxis.X = CurrentAxis.X * -1; else AbsCurrentAxis.X = CurrentAxis.X;
+			if (CurrentAxis.Y < 0) AbsCurrentAxis.Y = CurrentAxis.Y * -1; else AbsCurrentAxis.Y = CurrentAxis.Y;
+
 			if (CurrentAxis.X == 0.0f && CurrentAxis.Y == 0.0f) {
 				if (CanDefence()) 
 				{	
@@ -667,8 +686,15 @@ void ASPPawnCPP::Defence(int index)
 					Actions.Defence.ExecuteIfBound();
 				}
 			}
-			else if (abs(CurrentAxis.X) >= abs(CurrentAxis.Y) ) {
+			else if (AbsCurrentAxis.X >= AbsCurrentAxis.Y) {
 				if (CanDash()) {
+					GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, "-------------------------------");
+					GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(CurrentAxis.Y));
+					GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(CurrentAxis.X));
+					GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, "SIDE DASH MOVE");
+					GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(AbsCurrentAxis.Y));
+					GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(AbsCurrentAxis.X));
+					GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, "-------------------------------");
 					States.SIDE_DASH = true;
 					SetUpDash();
 
@@ -681,6 +707,13 @@ void ASPPawnCPP::Defence(int index)
 			else {
 				if (CurrentAxis.Y > 0.0f) {
 					if (CanDash()) {
+						GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, "-------------------------------");
+						GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(CurrentAxis.Y));
+						GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(CurrentAxis.X));
+							GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, "UP DASH MOVE");
+							GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(AbsCurrentAxis.Y));
+							GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(AbsCurrentAxis.X));
+							GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, "-------------------------------");
 						States.UP_DASH = true;
 						SetUpDash();
 
@@ -693,6 +726,13 @@ void ASPPawnCPP::Defence(int index)
 				else {
 					if (CanDash()) {
 						if (States.ON_GROUND) {
+							GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, "-------------------------------");
+							GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(CurrentAxis.Y));
+							GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(CurrentAxis.X));
+								GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, "SPOT DODGE MOVE");
+								GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(AbsCurrentAxis.Y));
+								GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(AbsCurrentAxis.X));
+								GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, "-------------------------------");
 							States.SPOT_DODGE = true;
 							SetUpDash();
 
@@ -700,6 +740,13 @@ void ASPPawnCPP::Defence(int index)
 						}
 							
 						else {
+							GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, "-------------------------------");
+							GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(CurrentAxis.Y));
+							GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(CurrentAxis.X));
+								GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, "DOWN DASH MOVE");
+								GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(AbsCurrentAxis.Y));
+								GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(AbsCurrentAxis.X));
+								GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, "-------------------------------");
 							States.DOWN_DASH = true;
 							SetUpDash();
 
@@ -746,12 +793,16 @@ void ASPPawnCPP::Defence(int index)
 	}
 	else {
 		FVector2D CurrentAxis = AxisPosition();
+		FVector2D AbsCurrentAxis;
+		if (CurrentAxis.X < 0) AbsCurrentAxis.X = CurrentAxis.X * -1; else AbsCurrentAxis.X = CurrentAxis.X;
+		if (CurrentAxis.Y < 0) AbsCurrentAxis.Y = CurrentAxis.Y * -1; else AbsCurrentAxis.Y = CurrentAxis.Y;
+
 		if (CurrentAxis.X == 0.0f && CurrentAxis.Y == 0.0f) {
 			if (CanDefence()) {
 				Server_Defence();
 			}
 		}
-		else if (abs(CurrentAxis.X) >= abs(CurrentAxis.Y) && CanDash()) {
+		else if (AbsCurrentAxis.X >= AbsCurrentAxis.Y && CanDash()) {
 			Server_SideDash();
 		}
 		else if(CanDash()){
@@ -1452,47 +1503,6 @@ void ASPPawnCPP::CalculateMovement()
 				Client_Forces.X = -Attributes.JumpPower / StaticAttributes.WallJumpXModifier;
 			}
 		}
-
-		if (States.SIDE_DASH) {
-			States.SIDE_DASH = false;
-			if (WorkData.FacingRight) {
-				if (Forces.X > (-Attributes.Dash * 2.0f) && Forces.X <= 0.0f) {
-						Forces.X = Attributes.Dash;
-				}
-				else {
-					Forces.X += Attributes.Dash;
-				}
-			}
-			else {
-				if (Forces.X < (Attributes.Dash * 2.0f) && Forces.X >= 0.0f) {
-					Forces.X = -Attributes.Dash;
-				}
-				else {
-					Forces.X -= Attributes.Dash;
-				}
-			}
-		}
-		else if (States.UP_DASH) {
-			States.UP_DASH = false;
-			if (Forces.Y >(-Attributes.Dash * 2.0f) && Forces.Y <= 0.0f) {
-				Forces.Y = Attributes.Dash;
-			}
-			else {
-				Forces.Y += Attributes.Dash;
-			}
-		}
-		if (States.DOWN_DASH) {
-			States.DOWN_DASH = false;
-			if (Forces.Y < (Attributes.Dash * 2.0f) && Forces.Y >= 0.0f) {
-				Forces.Y = -Attributes.Dash;
-			}
-			else {
-				Forces.Y -= Attributes.Dash;
-			}
-		}
-		else if (States.SPOT_DODGE) {
-			States.SPOT_DODGE = false;
-		}
 	}
 }
 
@@ -1677,7 +1687,7 @@ bool ASPPawnCPP::CanJump() {
 	else {
 		if (!IsStun() && !States.BUSY && States.CAN_JUMP && !States.DEFENCE && !States.DASH
 			&& !States.LIGHT_ATTACK && !States.STRONG_ATTACK) {
-			if (WorkData.AirJumped < Attributes.AirJumpAmount) {
+			if (true) {
 				return true;
 			}
 			else return false;
