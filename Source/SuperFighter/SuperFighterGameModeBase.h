@@ -11,10 +11,21 @@
 /**
  * 
  */
+USTRUCT(BlueprintType)
+struct FSPGMWorkData {
+	GENERATED_BODY()
+
+		int PlayersAmount;
+};
+
+
 UCLASS()
 class SUPERFIGHTER_API ASuperFighterGameModeBase : public AGameModeBase
 {
 	GENERATED_BODY()
+
+private:
+	FSPGMWorkData WorkData;
 	
 public:
 	// Sets default values for this actor's properties
@@ -28,4 +39,6 @@ public:
 
 	// Overriding the PostLogin function
 	virtual void PostLogin(APlayerController* NewPlayer) override;
+
+	int PlayersAmount() { return WorkData.PlayersAmount; }
 };

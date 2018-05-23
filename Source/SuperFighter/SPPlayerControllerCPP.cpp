@@ -1,6 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "SuperFighter.h"
+#include "SuperFighterGameModeBase.h"
 #include "SPPlayerControllerCPP.h"
 
 
@@ -27,7 +28,7 @@ FVector2D ASPPlayerControllerCPP::AxisPosition_Implementation()
 }
 
 
-APawn * ASPPlayerControllerCPP::Native_SpawnSPPawnBP_Implementation(FVector Location)
+APawn * ASPPlayerControllerCPP::Native_SpawnSPPawnBP_Implementation(FVector Location, bool Server = false)
 {
 	return nullptr;
 }
@@ -36,18 +37,18 @@ void ASPPlayerControllerCPP::Client_PostLogin_Implementation()
 {
 	Server_SpawnPawn();
 	if (HasAuthority()) {
-		ASPPawnCPP *MyPawn = Cast<ASPPawnCPP>(GetPawn());
+		/*ASPPawnCPP *MyPawn = Cast<ASPPawnCPP>(GetPawn());
 		if (IsValid(MyPawn)) {
 			MyPawn->SetAsLocal();
-		}
+		}*/
 	}
 }
 
 void ASPPlayerControllerCPP::Server_SpawnPawn_Implementation()
 {
-	AGameModeBase* gm;
+	ASuperFighterGameModeBase* gm;
 	FVector location;
-	gm = GetWorld()->GetAuthGameMode();
+	gm = Cast<ASuperFighterGameModeBase>(GetWorld()->GetAuthGameMode());
 	switch (FMath::RandRange((int)0, (int)3)) {
 	case 0:
 		location = gm->FindPlayerStart(this, "Uno")->GetActorLocation();
@@ -70,7 +71,12 @@ void ASPPlayerControllerCPP::Server_SpawnPawn_Implementation()
 		break;
 	}
 
-	APawn* SpawnedPawn= Native_SpawnSPPawnBP(location);
+	APawn* SpawnedPawn;
+	if(gm->PlayersAmount() > 1)
+	SpawnedPawn = Native_SpawnSPPawnBP(location);
+	else
+	SpawnedPawn = Native_SpawnSPPawnBP(location, true);
+
 	if (IsValid(SpawnedPawn)) {
 		Possess(SpawnedPawn);
 	}

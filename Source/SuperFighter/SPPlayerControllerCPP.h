@@ -33,7 +33,7 @@ public:
 		void Client_PostLogin();
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SPPC)
-		APawn* Native_SpawnSPPawnBP(FVector Location);
+		APawn* Native_SpawnSPPawnBP(FVector Location, bool Server = false);
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
 		FVector2D AxisPosition();
