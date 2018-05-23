@@ -38,6 +38,8 @@ ASPPawnCPP::ASPPawnCPP()
 	WorkData.PossitionError = FVector(0.0f, 0.0f, 0.0f);
 	WorkData.HitStun = 0.0f;
 	WorkData.CurrentDefence = 0.0f;
+	WorkData.WasHit = false;
+	WorkData.HitForce = FVector(0.0f, 0.0, 0.0f);
 
 	Actions.delay = 0.0f;
 
@@ -153,7 +155,7 @@ void ASPPawnCPP::HitPunch(bool FromClient, FVector2D ClientAxisPosition)
 {
 	if (HasAuthority()) {
 
-		FSPHitBoxDetails HBDetails;
+		/*FSPHitBoxDetails HBDetails;
 		FVector self_position;
 		FVector self_bounds;
 		FVector temp;
@@ -177,7 +179,7 @@ void ASPPawnCPP::HitPunch(bool FromClient, FVector2D ClientAxisPosition)
 	}
 	else {
 		Server_HitPunch(AxisPosition());
-	}
+	*/}
 }
 
 void ASPPawnCPP::HitPosition(FVector2D AxisPosition, FVector& Position, FVector& Force)
@@ -1435,6 +1437,12 @@ void ASPPawnCPP::CalculateMovement()
 			States.SPOT_DODGE = false;
 		}
 
+		if (WorkData.WasHit) {
+			WorkData.WasHit = false;
+			Forces.X += WorkData.HitForce.X * WorkData.HitForce.Z;
+			Forces.Y += WorkData.HitForce.Y * WorkData.HitForce.Z;
+		}
+
 	}
 	else {
 		if (States.MOVE_LEFT) {
@@ -1584,6 +1592,8 @@ void ASPPawnCPP::GetHit(float hitstun, float damage, FVector knockback/*x/y are 
 				WorkData.HitStun *= 3.0f;
 				ClientHitStun = WorkData.HitStun;
 				ClearStatesWhileHit();
+				WorkData.WasHit = true;
+				WorkData.HitForce = knockback;
 			}
 			if (WorkData.CurrentDefence < Attributes.Defence) {
 				GetWorldTimerManager().ClearTimer(WorkData.DefenceTimer);
@@ -1600,7 +1610,17 @@ void ASPPawnCPP::GetHit(float hitstun, float damage, FVector knockback/*x/y are 
 			}
 		}
 		WorkData.Injuries += injuries;
+		WorkData.WasHit = true;
+		WorkData.HitForce = knockback;
 	}
+}
+
+bool ASPPawnCPP::FacingRight()
+{
+	if (WorkData.FacingRight)
+		return true;
+	else
+	return false;
 }
 
 bool ASPPawnCPP::IsStun()

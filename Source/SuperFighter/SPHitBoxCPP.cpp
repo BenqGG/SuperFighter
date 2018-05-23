@@ -8,20 +8,23 @@
 ASPHitBoxCPP::ASPHitBoxCPP()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
 
 	MainBody = CreateDefaultSubobject<USphereComponent>(TEXT("Hit_Box"));
 	RootComponent = MainBody;
-	Active = false;
+	WorkData.Active = false;
 }
 
 void ASPHitBoxCPP::SetHitbox(FSPHitBoxDetails l_details)
 {
-	Details = l_details;
-	MainBody->SetSphereRadius(Details.Position.Y);
-	GetWorldTimerManager().SetTimer(DestroyTimer, this, &ASPHitBoxCPP::DestroyHitBox, Details.ExistTime, false);
-	Active = true;
-	MainBody->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	if (HasAuthority()) {
+		Details = l_details;
+		MainBody->SetSphereRadius(Details.Position.Z);
+		this->SetActorLocation(FVector(Details.Position.X, 0.0f, Details.Position.Y), false);
+		GetWorldTimerManager().SetTimer(WorkData.ActivationTimer, this, &ASPHitBoxCPP::ActivateHitBox, Details.ActivationTime, false);
+		MainBody->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+		
 }
 
 // Called when the game starts or when spawned
@@ -37,34 +40,18 @@ void ASPHitBoxCPP::Tick( float DeltaTime )
 
 }
 
-void ASPHitBoxCPP::DestroyHitBox()
-{
-	GetWorldTimerManager().ClearTimer(DestroyTimer);
-	AActor::Destroy(true, false);
-}
-
-void ASPHitBoxCPP::HitActor(AActor * HitActor, HitType Type)
+void ASPHitBoxCPP::ActivateHitBox()
 {
 	if (HasAuthority()) {
-		if (Details.FriendlyFire || HitActor != Details.Owner) {
-			if (Active) {
-				switch (Type) {
-				case HitType::HT_Pawn:
-					HitPawn(HitActor);
-					if (!Details.MultiHit) DestroyHitBox();
-					break;
-
-				case HitType::HT_Missile:
-					break;
-
-				default:
-					break;
-				}
-			}
-		}
+		WorkData.Active = true;
+		MainBody->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		GetWorldTimerManager().ClearTimer(WorkData.ActivationTimer);
+		GetWorldTimerManager().SetTimer(WorkData.DestroyTimer, this, &ASPHitBoxCPP::DestroyHitBox, Details.DestroyTime, false);
 	}
 }
 
-void ASPHitBoxCPP::HitPawn_Implementation(AActor * HitActor)
+void ASPHitBoxCPP::DestroyHitBox()
 {
+	GetWorldTimerManager().ClearTimer(WorkData.DestroyTimer);
+	AActor::Destroy(true, false);
 }

@@ -213,6 +213,8 @@ struct FSPWorkData {
 		//+1 every 0.1 second
 		int StrongAttackMeter = 0;
 
+		bool WasHit = false;
+		FVector HitForce;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		int AirJumped;
@@ -510,6 +512,9 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
 		void ChangeAnimationRotation();
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+	bool FacingRight();
 
 	bool IsStun();
 	bool CanMove();
