@@ -78,12 +78,14 @@ void ASPServerCouchPawnCPP::SetPosition()
 			//if Horizontal distance is bigger than vertical
 			if (absDistanceX >= absDistanceY ) {
 				distance = Pos1.X - Pos2.X;
+
 			}
 			else {
-				distance = (Pos1.Z - Pos2.Z);
+				distance = (Pos1.Z - Pos2.Z) * 1.7f;
 			}
 
-			if (distance < 0) distance *= -1.0f;
+			if (distance < 0.0f) distance *= -1.0f;
+			if (distance < 400.0f) distance = 400.0f;
 			distance = (distance / 2) + 300.0f;
 			SetActorLocation(FVector(middleX, distance, middleY), false);
 		}
