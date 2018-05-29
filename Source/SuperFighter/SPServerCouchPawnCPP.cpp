@@ -10,7 +10,7 @@ ASPServerCouchPawnCPP::ASPServerCouchPawnCPP()
  	// Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 	Data.PlayersAmount = 0;
-
+	Data.TargetPosition = FVector(0.0f, 0.0f, 0.0f);
 }
 
 // Called when the game starts or when spawned
@@ -30,6 +30,7 @@ void ASPServerCouchPawnCPP::Tick( float DeltaTime )
 			FindPlayers();
 		}
 		SetPosition();
+		MoveCamera(DeltaTime);
 	}
 
 }
@@ -85,11 +86,49 @@ void ASPServerCouchPawnCPP::SetPosition()
 			}
 
 			if (distance < 0.0f) distance *= -1.0f;
-			if (distance < 400.0f) distance = 400.0f;
 			distance = (distance / 2) + 300.0f;
-			SetActorLocation(FVector(middleX, distance, middleY), false);
+			if (distance < 400.0f) distance = 400.0f;
+			Data.TargetPosition = FVector(middleX, distance, middleY);
 		}
 	}
+}
+
+void ASPServerCouchPawnCPP::MoveCamera(float deltaTimer)
+{
+	float delta = deltaTimer / 1.0f;
+	FVector CurrentPosition = GetActorLocation();
+	FVector NextPosition;
+
+
+	if (CurrentPosition.X > Data.TargetPosition.X) {
+		NextPosition.X = CurrentPosition.X - (Data.Step * delta);
+		if (NextPosition.X < Data.TargetPosition.X) NextPosition.X = Data.TargetPosition.X;
+	}
+	else if (CurrentPosition.X < Data.TargetPosition.X) {
+		NextPosition.X = CurrentPosition.X + (Data.Step * delta);
+		if (NextPosition.X > Data.TargetPosition.X) NextPosition.X = Data.TargetPosition.X;
+	}
+
+	if (CurrentPosition.Z > Data.TargetPosition.Z) {
+		NextPosition.Z = CurrentPosition.Z - (Data.Step * 2 * delta);
+		if (NextPosition.Z < Data.TargetPosition.Z) NextPosition.Z = Data.TargetPosition.Z;
+	}
+	else if (CurrentPosition.Z < Data.TargetPosition.Z) {
+		NextPosition.Z = CurrentPosition.Z + (Data.Step * 2 * delta);
+		if (NextPosition.Z > Data.TargetPosition.Z) NextPosition.Z = Data.TargetPosition.Z;
+	}
+
+	if (CurrentPosition.Y > Data.TargetPosition.Y) {
+		NextPosition.Y = CurrentPosition.Y - (Data.Step * delta);
+		if (NextPosition.Y < Data.TargetPosition.Y) NextPosition.Y = Data.TargetPosition.Y;
+	}
+	else if (CurrentPosition.Y < Data.TargetPosition.Y) {
+		NextPosition.Y = CurrentPosition.Y + (Data.Step * delta);
+		if (NextPosition.Y > Data.TargetPosition.Y) NextPosition.Y = Data.TargetPosition.Y;
+	}
+	
+
+	SetActorLocation(NextPosition, false);
 }
 
 void ASPServerCouchPawnCPP::FindPlayers_Implementation()

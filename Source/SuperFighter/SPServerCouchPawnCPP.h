@@ -13,6 +13,9 @@ struct FSPSCPData {
 	int PlayersAmount;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 	TArray<AActor*> Players;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		float Step;
+	FVector TargetPosition;
 };
 
 UCLASS()
@@ -43,5 +46,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void SetPosition();
-	
+
+	void MoveCamera(float deltaTime);
 };
