@@ -918,41 +918,47 @@ ChangeAnimation(FSPAnimationDetails details)
 
 void ASPPawnCPP::Friction(float DeltaTime)
 {
-	if(HasAuthority()){
-		if (Forces.X > 0.0f) {
-			if (GroundUnderFeet()) {
-				Forces.X -= ValuePerSecond(Attributes.Friction, DeltaTime);
-			}
-			else {
-				Forces.X -= ValuePerSecond(Attributes.AirFriction, DeltaTime);
-			}
-			if (Forces.X < 0.0f) {
-				Forces.X = 0.0f;
-			}
-		}
-		else if (Forces.X < 0.0f) {
-			if (GroundUnderFeet()) {
-				Forces.X += ValuePerSecond(Attributes.Friction, DeltaTime);
-			}
-			else {
-				Forces.X += ValuePerSecond(Attributes.AirFriction, DeltaTime);
-			}
+	if (HasAuthority()) {
+		if(!States.DASH)
+		{
 			if (Forces.X > 0.0f) {
-				Forces.X = 0.0f;
+				if (GroundUnderFeet()) {
+					Forces.X -= ValuePerSecond(Attributes.Friction, DeltaTime);
+				}
+				else {
+					Forces.X -= ValuePerSecond(Attributes.AirFriction, DeltaTime);
+				}
+				if (Forces.X < 0.0f) {
+					Forces.X = 0.0f;
+				}
+			}
+			else if (Forces.X < 0.0f) {
+				if (GroundUnderFeet()) {
+					Forces.X += ValuePerSecond(Attributes.Friction, DeltaTime);
+				}
+				else {
+					Forces.X += ValuePerSecond(Attributes.AirFriction, DeltaTime);
+				}
+				if (Forces.X > 0.0f) {
+					Forces.X = 0.0f;
+				}
 			}
 		}
 	}
 	else {
-		if (Client_Forces.X != 0.0f) {
-			float current_friction;
-			if (GroundUnderFeet()) {
-				current_friction = Attributes.Friction;
+		if (!States.DASH)
+		{
+			if (Client_Forces.X != 0.0f) {
+				float current_friction;
+				if (GroundUnderFeet()) {
+					current_friction = Attributes.Friction;
+				}
+				else {
+					current_friction = Attributes.AirFriction;
+				}
+				Client_Forces.X > 0 ? current_friction : current_friction *= -1;
+				Client_Forces.X -= ValuePerSecond(current_friction, DeltaTime);
 			}
-			else {
-				current_friction = Attributes.AirFriction;
-			}
-			Client_Forces.X > 0 ? current_friction : current_friction *= -1;
-			Client_Forces.X -= ValuePerSecond(current_friction, DeltaTime);
 		}
 	}
 }
@@ -960,9 +966,11 @@ void ASPPawnCPP::Friction(float DeltaTime)
 void ASPPawnCPP::Gravity(float DeltaTime)
 {
 	if (HasAuthority()) {
+		if(!States.DASH )
 		Forces.Y -= ValuePerSecond(Attributes.Gravity, DeltaTime);
 	}
 	else {
+		if (!States.DASH)
 		Client_Forces.Y -= ValuePerSecond(Attributes.Gravity, DeltaTime);
 	}
 	
