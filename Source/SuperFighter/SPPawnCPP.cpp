@@ -1609,7 +1609,7 @@ void ASPPawnCPP::GetHit(float hitstun, float damage, FVector knockback/*x/y are 
 			}
 		}
 		else {
-			if (WorkData.HitStun < 0.03f) {
+			if (WorkData.HitStun < 0.1f) {
 				WorkData.HitStun = hitstun
 					+ ((hitstun * (float)WorkData.Injuries) / 100.0f); //Injuries adds to hitstun;
 				WorkData.HitStun -= (WorkData.HitStun *(float)Attributes.Tenacity) / 100.0f; //Tenacity lowers hitstun

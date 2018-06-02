@@ -318,7 +318,9 @@ protected:
 	void StopDash();
 	void DashColdown();
 
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 	void StartLightAttack(float time);
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 	void EndLightAttack();
 
 	void SetUpStrongAttack();
