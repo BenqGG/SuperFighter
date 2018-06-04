@@ -84,9 +84,18 @@ void ASPPawnCPP::Tick(float DeltaTime)
 		Friction(DeltaTime);
 		Gravity(DeltaTime);
 		CalculateMovement();
+
+		if (IsStun()) {
+			ManageStunState(DeltaTime);
+		}
+		if (States.DEFENCE) {
+			DrawDefence();
+		}
 		CurrentPosition = GetActorLocation();
 		Client_Forces = Forces;
 		GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, FString::SanitizeFloat(GetController()->PlayerState->ExactPing));
+		
+		
 	}
 	else {
 		ApplyForces(DeltaTime);
@@ -94,6 +103,7 @@ void ASPPawnCPP::Tick(float DeltaTime)
 		Friction(DeltaTime);
 		Gravity(DeltaTime);
 		CalculateMovement();
+		
 		//GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, WorkData.PossitionError.ToCompactString());
 		/*AController *check = GetController();
 		if (IsValid(check)) {
@@ -108,6 +118,10 @@ void ASPPawnCPP::Tick(float DeltaTime)
 void ASPPawnCPP::SetupPlayerInputComponent(class UInputComponent* InputComponent)
 {
 	Super::SetupPlayerInputComponent(InputComponent);
+}
+
+void ASPPawnCPP::DrawStunMeter_Implementation(float Radius)
+{
 }
 
 void ASPPawnCPP::CallEndViewTarget()
@@ -180,6 +194,40 @@ void ASPPawnCPP::HitPunch(bool FromClient, FVector2D ClientAxisPosition)
 	else {
 		Server_HitPunch(AxisPosition());
 	*/}
+}
+
+void ASPPawnCPP::ManageStunState(float DeltaTime)
+{
+	if (HasAuthority()) {
+		WorkData.HitStun -= DeltaTime;
+		if (WorkData.HitStun < 0.0f) {
+			WorkData.HitStun = 0.0f;
+		}
+		else {
+			float StunMeterRadius = (WorkData.HitStun * 25.0f) / 1.0f;
+			DrawStunMeter(StunMeterRadius);
+		}
+		
+		
+	}
+	else {
+		WorkData.ClientHitStun -= DeltaTime;
+		if (WorkData.ClientHitStun < 0.0f) {
+			WorkData.ClientHitStun = 0.0f;
+		}
+		else {
+			float StunMeterRadius = (WorkData.ClientHitStun * 25.0f) / 1.0f;
+			DrawStunMeter(StunMeterRadius);
+		}
+	}
+}
+
+void ASPPawnCPP::DodgeBlink_Implementation(bool start)
+{
+}
+
+void ASPPawnCPP::DrawDefence_Implementation()
+{
 }
 
 void ASPPawnCPP::HitPosition(FVector2D AxisPosition, FVector& Position, FVector& Force)
@@ -1148,11 +1196,13 @@ void ASPPawnCPP::SetUpDash()
 		if (States.CAN_DASH)				States.CAN_DASH = false;
 
 		if (States.SPOT_DODGE) {
-			GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, 0.2f, false);
+			GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, 0.08f, false);
 		}
 		else {
-			GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, 0.5f, false);
+			GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, 0.12f, false);
 		}
+
+		DodgeBlink(true);
 	}
 }
 
@@ -1172,6 +1222,7 @@ void ASPPawnCPP::StopDash()
 		GetWorldTimerManager().ClearTimer(WorkData.DashTimer);
 		GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::DashColdown, 1.0f, false);
 
+		DodgeBlink(false);
 	}
 }
 

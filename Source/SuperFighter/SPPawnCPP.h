@@ -453,6 +453,9 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
 		bool GroundNextToFeet(bool right) const;
 
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
+		void DrawStunMeter(float Radius);
+
 	void SetAsLocal() { WorkData.IsLocal = true; }
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
@@ -483,6 +486,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void HitPunch(bool FromClient = false, FVector2D ClientAxisPosition = FVector2D(0, 0));
 
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void ManageStunState(float DeltaTime);
+
 	UFUNCTION(Server, unreliable, WithValidation)
 		void Server_HitPunch(FVector2D AxisPosition);
 
@@ -491,6 +497,12 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
 		void SpawnHitBox(FSPHitBoxDetails l_details);
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
+		void DodgeBlink(bool start);
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
+		void DrawDefence();
 
 	void HitPosition(FVector2D AxisPosition, FVector& Position, FVector& Force);
 
