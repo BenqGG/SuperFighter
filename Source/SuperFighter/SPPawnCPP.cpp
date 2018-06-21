@@ -124,6 +124,33 @@ void ASPPawnCPP::DrawStunMeter_Implementation(float Radius)
 {
 }
 
+void ASPPawnCPP::StopDashForces()
+{
+	if (HasAuthority()) {
+		if (Forces.X > 0) {
+			if ( Forces.X <= Attributes.Dash) {
+				Forces.X = 0.0f;
+			}
+		}
+		else {
+			if (Forces.X >= -Attributes.Dash) {
+				Forces.X = 0.0f;
+			}
+		}
+
+		if (Forces.Y > 0) {
+			if (Forces.Y <= Attributes.Dash) {
+				Forces.Y = 0.0f;
+			}
+		}
+		else {
+			if (Forces.Y >= -Attributes.Dash) {
+				Forces.Y = 0.0f;
+			}
+		}
+	}
+}
+
 void ASPPawnCPP::CallEndViewTarget()
 {
 	if (HasAuthority()) {
@@ -204,7 +231,7 @@ void ASPPawnCPP::ManageStunState(float DeltaTime)
 			WorkData.HitStun = 0.0f;
 		}
 		else {
-			float StunMeterRadius = (WorkData.HitStun * 25.0f) / 1.0f;
+			float StunMeterRadius = (WorkData.HitStun * 50.0f) - 5;
 			DrawStunMeter(StunMeterRadius);
 		}
 		
@@ -216,7 +243,7 @@ void ASPPawnCPP::ManageStunState(float DeltaTime)
 			WorkData.ClientHitStun = 0.0f;
 		}
 		else {
-			float StunMeterRadius = (WorkData.ClientHitStun * 25.0f) / 1.0f;
+			float StunMeterRadius = (WorkData.ClientHitStun * 50.0f) - 5;
 			DrawStunMeter(StunMeterRadius);
 		}
 	}
@@ -962,6 +989,7 @@ ChangeAnimation(FSPAnimationDetails details)
 	collision_box->SetBoxExtent(FVector(details.CollisionBox.X, 10, details.CollisionBox.Y), true);
 	hit_box->SetBoxExtent(FVector(details.HitBox.X, 10, details.HitBox.Y), true);
 	animation->SetFlipbook(details.Flipbook);
+	animation->PlayFromStart();
 }
 
 void ASPPawnCPP::Friction(float DeltaTime)
@@ -1196,10 +1224,10 @@ void ASPPawnCPP::SetUpDash()
 		if (States.CAN_DASH)				States.CAN_DASH = false;
 
 		if (States.SPOT_DODGE) {
-			GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, 0.08f, false);
+			GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, 0.2f, false);
 		}
 		else {
-			GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, 0.12f, false);
+			GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, 0.4f, false);
 		}
 
 		DodgeBlink(true);
@@ -1223,6 +1251,8 @@ void ASPPawnCPP::StopDash()
 		GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::DashColdown, 1.0f, false);
 
 		DodgeBlink(false);
+		StopDashForces();
+		DashEnd();
 	}
 }
 
@@ -1269,6 +1299,7 @@ void ASPPawnCPP::StartLightAttack(float time)
 void ASPPawnCPP::EndLightAttack()
 {
 	if (HasAuthority()) {
+		
 		if (States.LIGHT_ATTACK) States.LIGHT_ATTACK = false;
 
 		if (!States.CAN_MOVE)			States.CAN_MOVE = true;
@@ -1277,7 +1308,7 @@ void ASPPawnCPP::EndLightAttack()
 		if (!States.CAN_DASH)			States.CAN_DASH = true;
 		if (!States.CAN_STRONG_ATTACK)	States.CAN_STRONG_ATTACK = true;
 		if (!States.CAN_LIGHT_ATTACK)	States.CAN_LIGHT_ATTACK = true;
-
+		
 		GetWorldTimerManager().ClearTimer(WorkData.LightAttackTimer);
 	}
 }
@@ -1301,7 +1332,10 @@ void ASPPawnCPP::SetUpStrongAttack()
 			States.JUMP_RIGHT_WALL = false;
 			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
 		}
-		if(States.LIGHT_ATTACK) States.LIGHT_ATTACK = false;
+		if (States.LIGHT_ATTACK) {
+			States.LIGHT_ATTACK = false;
+			GetWorldTimerManager().ClearTimer(WorkData.LightAttackTimer);
+		}
 		
 
 		if(States.CAN_MOVE) States.CAN_MOVE = false;
@@ -1457,39 +1491,46 @@ void ASPPawnCPP::CalculateMovement()
 
 		if (States.SIDE_DASH) {
 			States.SIDE_DASH = false;
-			if (WorkData.FacingRight) {
-				if (Forces.X > (-Attributes.Dash * 2.0f) && Forces.X <= 0.0f) {
-						Forces.X = Attributes.Dash / 1.5f;
+			if ((Forces.X >= 0.0f && Forces.X <= Attributes.Dash) || 
+				(Forces.X < 0.0f && Forces.X >= -Attributes.Dash)) {
+				if ((Forces.Y >= 0.0f && Forces.Y <= Attributes.Dash) ||
+					(Forces.Y < 0.0f && Forces.Y >= -Attributes.Dash)) {
+
+					if (WorkData.FacingRight) {
+						Forces.X = Attributes.Dash;
+					}
+					else {
+						Forces.X = -Attributes.Dash;
+					}
+					Forces.Y = 0.0f;
 				}
-				else {
-					Forces.X += Attributes.Dash / 1.5f;
-				}
-			}
-			else {
-				if (Forces.X < (Attributes.Dash * 2.0f) && Forces.X >= 0.0f) {
-					Forces.X = -Attributes.Dash / 1.5f;
-				}
-				else {
-					Forces.X -= Attributes.Dash / 1.5f;
-				}
+
 			}
 		}
 		else if (States.UP_DASH) {
 			States.UP_DASH = false;
-			if (Forces.Y >(-Attributes.Dash * 2.0f) && Forces.Y <= 0.0f) {
-				Forces.Y = Attributes.Dash;
-			}
-			else {
-				Forces.Y += Attributes.Dash;
+			if ((Forces.X >= 0.0f && Forces.X <= Attributes.Dash) ||
+				(Forces.X < 0.0f && Forces.X >= -Attributes.Dash)) {
+				if ((Forces.Y >= 0.0f && Forces.Y <= Attributes.Dash) ||
+					(Forces.Y < 0.0f && Forces.Y >= -Attributes.Dash)) {
+
+					Forces.X = 0.0f;
+					Forces.Y = Attributes.Dash;
+				}
+
 			}
 		}
 		if (States.DOWN_DASH) {
 			States.DOWN_DASH = false;
-			if (Forces.Y < (Attributes.Dash * 2.0f) && Forces.Y >= 0.0f) {
-				Forces.Y = -Attributes.Dash;
-			}
-			else {
-				Forces.Y -= Attributes.Dash;
+			if ((Forces.X >= 0.0f && Forces.X <= Attributes.Dash) ||
+				(Forces.X < 0.0f && Forces.X >= -Attributes.Dash)) {
+				if ((Forces.Y >= 0.0f && Forces.Y <= Attributes.Dash) ||
+					(Forces.Y < 0.0f && Forces.Y >= -Attributes.Dash)) {
+
+					Forces.X = 0.0f;
+					Forces.Y = -Attributes.Dash;
+				}
+
 			}
 		}
 		else if (States.SPOT_DODGE) {
@@ -1591,12 +1632,21 @@ void ASPPawnCPP::Move(bool right)
 			if (right) {
 				if(States.MOVE_LEFT) States.MOVE_LEFT = false;
 				if(!States.MOVE_RIGHT) States.MOVE_RIGHT  = true;
-				if(!WorkData.FacingRight)WorkData.FacingRight = true;
+				if (!WorkData.FacingRight) {
+					FRotator rotation(0.0f, 0.0f, 0.0f);
+					WorkData.FacingRight = true;
+					animation->SetRelativeRotation(rotation, false);
+				}
 			}
 			else {
 				if (!States.MOVE_LEFT) States.MOVE_LEFT = true;
 				if (States.MOVE_RIGHT) States.MOVE_RIGHT = false;
-				if (WorkData.FacingRight)WorkData.FacingRight = false;
+				if (WorkData.FacingRight) {
+					FRotator rotation(0.0f, 180.0f, 0.0f);
+					WorkData.FacingRight = false;
+					animation->SetRelativeRotation(rotation, false);
+
+				}
 			}
 			Actions.Move.ExecuteIfBound();
 		}
@@ -1619,7 +1669,7 @@ void ASPPawnCPP::ResetActions(float delay_delta)
 	if (HasAuthority()) {
 		Actions.delay = delay_delta;
 		GetWorldTimerManager().ClearTimer(DelayTimer);
-		if (Actions.delay > 0.0f) {
+		if (Actions.delay > 0.000f) {
 			GetWorldTimerManager().SetTimer(DelayTimer, this, &ASPPawnCPP::CallDelayAction, Actions.delay, false);
 		}
 	}
@@ -1674,6 +1724,10 @@ void ASPPawnCPP::GetHit(float hitstun, float damage, FVector knockback/*x/y are 
 	}
 }
 
+void ASPPawnCPP::DashEnd_Implementation()
+{
+}
+
 bool ASPPawnCPP::FacingRight()
 {
 	if (WorkData.FacingRight)
@@ -1691,9 +1745,7 @@ bool ASPPawnCPP::IsStun()
 		return false;
 	}
 	else {
-		if (ClientHitStun > 0.0f) {
-			return true;
-		}
+		
 		return false;
 	}
 }

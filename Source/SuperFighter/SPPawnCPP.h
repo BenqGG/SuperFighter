@@ -320,7 +320,6 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 	void StartLightAttack(float time);
-	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 	void EndLightAttack();
 
 	void SetUpStrongAttack();
@@ -458,6 +457,8 @@ public:
 
 	void SetAsLocal() { WorkData.IsLocal = true; }
 
+	void StopDashForces();
+
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 	bool IsLocal() { return WorkData.IsLocal;  }
 
@@ -526,6 +527,9 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
 		void ChangeAnimationRotation();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
+		void DashEnd();
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 	bool FacingRight();
