@@ -304,6 +304,9 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void ChangeAnimation(FSPAnimationDetails details);
 
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void ChangeMovementSpeed(float speed);
+
 	void Friction(float DeltaTime);
 	void Gravity(float DeltaTime);
 

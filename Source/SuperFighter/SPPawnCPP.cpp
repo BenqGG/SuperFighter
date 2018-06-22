@@ -373,10 +373,10 @@ void ASPPawnCPP::Server_Move_Implementation(float AxisX)
 			if (AxisX == 0 && (States.MOVE_LEFT || States.MOVE_RIGHT)) {
 				StopMove();
 			}
-			else if (AxisX > 0.0f && AxisX > 0.2f && !States.MOVE_RIGHT) {
+			else if (AxisX > 0.2f && !States.MOVE_RIGHT) {
 				Move(true);
 			}
-			else if (AxisX < 0.0f && AxisX < -0.2f && !States.MOVE_LEFT) {
+			else if (AxisX < -0.2f && !States.MOVE_LEFT) {
 				Move(false);
 			}
 		}
@@ -990,6 +990,13 @@ ChangeAnimation(FSPAnimationDetails details)
 	hit_box->SetBoxExtent(FVector(details.HitBox.X, 10, details.HitBox.Y), true);
 	animation->SetFlipbook(details.Flipbook);
 	animation->PlayFromStart();
+}
+
+void ASPPawnCPP::ChangeMovementSpeed(float speed)
+{
+	if (HasAuthority()) {
+		Attributes.MoveSpeed = speed;
+	}
 }
 
 void ASPPawnCPP::Friction(float DeltaTime)
