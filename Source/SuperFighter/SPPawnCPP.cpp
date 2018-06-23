@@ -40,6 +40,8 @@ ASPPawnCPP::ASPPawnCPP()
 	WorkData.CurrentDefence = 0.0f;
 	WorkData.WasHit = false;
 	WorkData.HitForce = FVector(0.0f, 0.0, 0.0f);
+	WorkData.AddingForce = false;
+	WorkData.AddForce = FVector(0.0f, 0.0, 0.0f);
 
 	Actions.delay = 0.0f;
 
@@ -93,9 +95,7 @@ void ASPPawnCPP::Tick(float DeltaTime)
 		}
 		CurrentPosition = GetActorLocation();
 		Client_Forces = Forces;
-		GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, FString::SanitizeFloat(GetController()->PlayerState->ExactPing));
-		
-		
+		GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, FString::SanitizeFloat(GetController()->PlayerState->ExactPing));		
 	}
 	else {
 		ApplyForces(DeltaTime);
@@ -999,6 +999,14 @@ void ASPPawnCPP::ChangeMovementSpeed(float speed)
 	}
 }
 
+void ASPPawnCPP::AddForce(FVector force)
+{
+	if (HasAuthority()) {
+		WorkData.AddingForce = true;
+		WorkData.AddForce = force;
+	}
+}
+
 void ASPPawnCPP::Friction(float DeltaTime)
 {
 	if (HasAuthority()) {
@@ -1550,6 +1558,12 @@ void ASPPawnCPP::CalculateMovement()
 			Forces.Y += WorkData.HitForce.Y * WorkData.HitForce.Z;
 		}
 
+		if (WorkData.AddingForce) {
+			WorkData.AddingForce = false;
+			Forces.X += WorkData.AddForce.X * WorkData.AddForce.Z;
+			Forces.Y += WorkData.AddForce.Y * WorkData.AddForce.Z;
+		}
+
 	}
 	else {
 		if (States.MOVE_LEFT) {
@@ -1717,7 +1731,7 @@ void ASPPawnCPP::GetHit(float hitstun, float damage, FVector knockback/*x/y are 
 			}
 		}
 		else {
-			if (WorkData.HitStun < 0.1f) {
+			if (WorkData.HitStun < 0.06f) {
 				WorkData.HitStun = hitstun
 					+ ((hitstun * (float)WorkData.Injuries) / 100.0f); //Injuries adds to hitstun;
 				WorkData.HitStun -= (WorkData.HitStun *(float)Attributes.Tenacity) / 100.0f; //Tenacity lowers hitstun
@@ -1860,11 +1874,7 @@ bool ASPPawnCPP::CanLightAttack() {
 			return false;
 	}
 	else {
-		if (!IsStun() && !States.BUSY && States.CAN_LIGHT_ATTACK && !States.DEFENCE && !States.DASH
-			&& !States.STRONG_ATTACK)
-			return true;
-		else
-			return false;
+		return true;
 	}
 }
 

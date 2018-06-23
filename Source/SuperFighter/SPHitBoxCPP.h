@@ -34,13 +34,17 @@ struct FSPHitBoxDetails {
 		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		bool FriendlyFire;
 		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
-			bool MultiHit;
+		bool MultiHit;
 		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
-		AActor* Owner;
+		class ASPPawnCPP *Owner;
 		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		float Damage;
 		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		float HitStun;
+		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		bool FollowPlayer;
+		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FVector2D FollowDistance;
 };
 
 USTRUCT(BlueprintType)
@@ -80,6 +84,8 @@ public:
 		
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+
+	void Follow();
 	
 	// Called every frame
 	virtual void Tick( float DeltaSeconds ) override;

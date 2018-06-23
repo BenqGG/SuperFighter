@@ -216,6 +216,9 @@ struct FSPWorkData {
 		bool WasHit = false;
 		FVector HitForce;
 
+		bool AddingForce = false;
+		FVector AddForce;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		int AirJumped;
 
@@ -306,6 +309,9 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void ChangeMovementSpeed(float speed);
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void AddForce(FVector force);
 
 	void Friction(float DeltaTime);
 	void Gravity(float DeltaTime);

@@ -2,6 +2,7 @@
 
 #include "SuperFighter.h"
 #include "SPHitBoxCPP.h"
+#include "SPPawnCPP.h"
 
 
 // Sets default values
@@ -33,10 +34,27 @@ void ASPHitBoxCPP::BeginPlay()
 	Super::BeginPlay();
 }
 
+void ASPHitBoxCPP::Follow()
+{
+	FVector OwnerPosition = Details.Owner->GetActorLocation();
+	FVector FollowPosition;
+	if(Details.Owner->FacingRight())
+	FollowPosition.X = OwnerPosition.X + Details.FollowDistance.X;
+	else
+	FollowPosition.X = OwnerPosition.X - Details.FollowDistance.X;
+	FollowPosition.Z = OwnerPosition.Z + Details.FollowDistance.Y;
+	FollowPosition.Y = 0.0f;
+	
+	SetActorLocation(FollowPosition, false);
+}
+
 // Called every frame
 void ASPHitBoxCPP::Tick( float DeltaTime )
 {
 	Super::Tick( DeltaTime );
+	if (Details.FollowPlayer) {
+		Follow();
+	}
 
 }
 
