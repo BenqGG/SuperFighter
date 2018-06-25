@@ -543,6 +543,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 	bool FacingRight();
 
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		float StrongAttackMeter();
+
 	bool IsStun();
 	bool CanMove();
 	bool CanStopMove();

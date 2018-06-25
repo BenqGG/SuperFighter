@@ -1362,7 +1362,7 @@ void ASPPawnCPP::SetUpStrongAttack()
 		
 		WorkData.StrongAttackMeter = 0;
 		GetWorldTimerManager().ClearTimer(WorkData.StrongAttackTimer);
-		GetWorldTimerManager().SetTimer(WorkData.StrongAttackTimer, this, &ASPPawnCPP::UpgradeStrongAttackMeter, 0.1f, true);
+		GetWorldTimerManager().SetTimer(WorkData.StrongAttackTimer, this, &ASPPawnCPP::UpgradeStrongAttackMeter, 0.05f, true);
 	}
 }
 
@@ -1755,6 +1755,14 @@ bool ASPPawnCPP::FacingRight()
 		return true;
 	else
 	return false;
+}
+
+float ASPPawnCPP::StrongAttackMeter()
+{
+	if (HasAuthority()) {
+		return WorkData.StrongAttackMeter;
+	}
+	return 0.0f;
 }
 
 bool ASPPawnCPP::IsStun()
