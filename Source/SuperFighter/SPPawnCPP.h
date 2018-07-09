@@ -123,6 +123,15 @@ struct FSPPawnAttributes {
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		//Dash Speed
 		float Dash = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		//Dash Time 
+		float DashTime = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		//Spot Dodge Time 
+		float SpotDodgeTime = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		//Jump Time 
+		float JumpTime = 0;
 };
 
 USTRUCT(BlueprintType)
@@ -290,7 +299,7 @@ protected:
 
 	//Apply Forces working on player
 	void ApplyForces(float DeltaTime);
-	void CalculateMovement();
+	void CalculateMovement(float DeltaTime);
 
 	//Return value of "value" giving its value is per second and we calc it per deltaTime
 	float ValuePerSecond(float value, float deltaTime);

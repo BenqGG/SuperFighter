@@ -85,7 +85,7 @@ void ASPPawnCPP::Tick(float DeltaTime)
 		ApplyForces(DeltaTime);
 		Friction(DeltaTime);
 		Gravity(DeltaTime);
-		CalculateMovement();
+		CalculateMovement(DeltaTime);
 
 		if (IsStun()) {
 			ManageStunState(DeltaTime);
@@ -102,7 +102,7 @@ void ASPPawnCPP::Tick(float DeltaTime)
 		FixPossitionError();
 		Friction(DeltaTime);
 		Gravity(DeltaTime);
-		CalculateMovement();
+		CalculateMovement(DeltaTime);
 		
 		//GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, WorkData.PossitionError.ToCompactString());
 		/*AController *check = GetController();
@@ -408,19 +408,19 @@ void ASPPawnCPP::Jump()
 				if (GroundUnderFeet()) {
 					if(!States.JUMP) States.JUMP = true;
 					GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
-					GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
+					GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, Attributes.JumpTime, false);
 					Actions.Jump.ExecuteIfBound();
 				}
 				else if (GroundNextToFeet(true)) {
 					if (!States.JUMP_RIGHT_WALL) States.JUMP_RIGHT_WALL = true;
 					GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
-					GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
+					GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, Attributes.JumpTime, false);
 					Actions.Jump.ExecuteIfBound();
 				}
 				else if (GroundNextToFeet(false)) {
 					if(!States.JUMP_LEFT_WALL) States.JUMP_LEFT_WALL = true;
 					GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
-					GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
+					GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, Attributes.JumpTime, false);
 					Actions.Jump.ExecuteIfBound();
 				}
 				else if (WorkData.AirJumped < Attributes.AirJumpAmount) {
@@ -428,19 +428,19 @@ void ASPPawnCPP::Jump()
 					if (States.MOVE_LEFT) {
 						if(!States.JUMP_RIGHT_WALL) States.JUMP_RIGHT_WALL = true;
 						GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
-						GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
+						GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, Attributes.JumpTime, false);
 						Actions.Jump.ExecuteIfBound();
 					}
 					else if (States.MOVE_RIGHT) {
 						if(!States.JUMP_LEFT_WALL) States.JUMP_LEFT_WALL = true;
 						GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
-						GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
+						GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, Attributes.JumpTime, false);
 						Actions.Jump.ExecuteIfBound();
 					}
 					else {
 						if(!States.JUMP) States.JUMP = true;
 						GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
-						GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, 0.3f, false);
+						GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, Attributes.JumpTime, false);
 						Actions.Jump.ExecuteIfBound();
 					}
 			}
@@ -1239,10 +1239,10 @@ void ASPPawnCPP::SetUpDash()
 		if (States.CAN_DASH)				States.CAN_DASH = false;
 
 		if (States.SPOT_DODGE) {
-			GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, 0.2f, false);
+			GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, Attributes.SpotDodgeTime, false);
 		}
 		else {
-			GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, 0.4f, false);
+			GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, Attributes.DashTime, false);
 		}
 
 		DodgeBlink(true);
@@ -1433,14 +1433,14 @@ void ASPPawnCPP::ApplyForces(float DeltaTime)
 	}
 }
 
-void ASPPawnCPP::CalculateMovement()
+void ASPPawnCPP::CalculateMovement(float DeltaTime)
 {
 	if (HasAuthority()) {
 			
 		if (States.MOVE_LEFT) {
 			if (GroundUnderFeet()) {
 				if (Forces.X == 0) {
-					Forces.X -= Attributes.MoveSpeed * StaticAttributes.MovementScale;
+					Forces.X -= (Attributes.MoveSpeed * StaticAttributes.MovementScale);
 				}
 				else if (Forces.X < 0 && Forces.X >(-Attributes.MoveSpeed * StaticAttributes.MovementScale)) {
 					Forces.X = -Attributes.MoveSpeed * StaticAttributes.MovementScale;
@@ -1708,40 +1708,39 @@ void ASPPawnCPP::CallDelayAction()
 void ASPPawnCPP::GetHit(float hitstun, float damage, FVector knockback/*x/y are directions, z is force*/)
 {
 	if (HasAuthority()) {
-		float injuries = ((damage * Attributes.Tenacity) / 100.0f);
+
 		if (States.DEFENCE) {
-			if (WorkData.CurrentDefence >= injuries) {
-				WorkData.CurrentDefence -= injuries;
-				injuries = injuries / 10.0f;
+			if (WorkData.CurrentDefence > damage) {
+				WorkData.CurrentDefence -= damage;
+				damage = damage / 10.0f;
 			}
 			else {
 				WorkData.CurrentDefence = 0.0f;
-				WorkData.HitStun = hitstun
-					+ ((hitstun * (float)WorkData.Injuries) / 100.0f); //Injuries adds to hitstun;
-				WorkData.HitStun -= (WorkData.HitStun *(float)Attributes.Tenacity) / 100.0f; //Tenacity lowers hitstun
-				WorkData.HitStun *= 3.0f;
-				ClientHitStun = WorkData.HitStun;
-				ClearStatesWhileHit();
-				WorkData.WasHit = true;
-				WorkData.HitForce = knockback;
-			}
-			if (WorkData.CurrentDefence < Attributes.Defence) {
-				GetWorldTimerManager().ClearTimer(WorkData.DefenceTimer);
-				GetWorldTimerManager().SetTimer(WorkData.DefenceTimer, this, &ASPPawnCPP::ReplenishDefence, 1.0f, true);
+				hitstun = hitstun * 1.25f;
 			}
 		}
-		else {
+
+		if (!States.DEFENCE || WorkData.CurrentDefence == 0.0f) {
+			WorkData.WasHit = true;
+			ClearStatesWhileHit();
+
 			if (WorkData.HitStun < 0.06f) {
 				WorkData.HitStun = hitstun
 					+ ((hitstun * (float)WorkData.Injuries) / 100.0f); //Injuries adds to hitstun;
 				WorkData.HitStun -= (WorkData.HitStun *(float)Attributes.Tenacity) / 100.0f; //Tenacity lowers hitstun
 				ClientHitStun = WorkData.HitStun;
-				ClearStatesWhileHit();
 			}
+
+			knockback.Z += knockback.Z / (100.0f / (WorkData.Injuries * 0.4f));
+			WorkData.HitForce = knockback;
 		}
-		WorkData.Injuries += injuries;
-		WorkData.WasHit = true;
-		WorkData.HitForce = knockback;
+	
+		WorkData.Injuries += damage - (damage / (100.0f / ((float)Attributes.Tenacity * 0.5f)));
+
+		if (WorkData.CurrentDefence < Attributes.Defence) {
+			GetWorldTimerManager().ClearTimer(WorkData.DefenceTimer);
+			GetWorldTimerManager().SetTimer(WorkData.DefenceTimer, this, &ASPPawnCPP::ReplenishDefence, 1.0f, true);
+		}
 	}
 }
 
