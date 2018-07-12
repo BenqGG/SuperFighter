@@ -1554,8 +1554,20 @@ void ASPPawnCPP::CalculateMovement(float DeltaTime)
 
 		if (WorkData.WasHit) {
 			WorkData.WasHit = false;
-			Forces.X += WorkData.HitForce.X * WorkData.HitForce.Z;
-			Forces.Y += WorkData.HitForce.Y * WorkData.HitForce.Z;
+			if ( (WorkData.HitForce.X >= 0.0f && Forces.X >= 0.0f) ||
+				(WorkData.HitForce.X <= 0.0f && Forces.X <= 0.0f ) ) {
+				Forces.X += WorkData.HitForce.X * WorkData.HitForce.Z;
+			}
+			else {
+				Forces.X = WorkData.HitForce.X * WorkData.HitForce.Z;
+			}
+			if ((WorkData.HitForce.Y >= 0.0f && Forces.Y >= 0.0f) ||
+				(WorkData.HitForce.Y <= 0.0f && Forces.Y <= 0.0f)) {
+				Forces.Y += WorkData.HitForce.Y * WorkData.HitForce.Z;
+			}
+			else {
+				Forces.Y = WorkData.HitForce.Y * WorkData.HitForce.Z;
+			}
 		}
 
 		if (WorkData.AddingForce) {
