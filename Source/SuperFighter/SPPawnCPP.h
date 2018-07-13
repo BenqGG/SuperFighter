@@ -536,8 +536,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void CallDelayAction();
 
-	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
 		void GetHit(float hitstun, float damage, FVector knockback);
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
+		void EndStun();
 
 	void CallActionFunction(ASPPawnCPP& o, PawnActions p) {
 		CALL_MEMBER_FN(o, p)();
@@ -555,6 +558,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		float StrongAttackMeter();
 
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 	bool IsStun();
 	bool CanMove();
 	bool CanStopMove();

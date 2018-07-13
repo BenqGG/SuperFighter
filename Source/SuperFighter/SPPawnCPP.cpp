@@ -227,8 +227,9 @@ void ASPPawnCPP::ManageStunState(float DeltaTime)
 {
 	if (HasAuthority()) {
 		WorkData.HitStun -= DeltaTime;
-		if (WorkData.HitStun < 0.0f) {
+		if (WorkData.HitStun <= 0.0f) {
 			WorkData.HitStun = 0.0f;
+			EndStun();
 		}
 		else {
 			float StunMeterRadius = (WorkData.HitStun * 50.0f) - 5;
@@ -756,7 +757,7 @@ void ASPPawnCPP::Defence(int index)
 			if (CurrentAxis.X < 0) AbsCurrentAxis.X = CurrentAxis.X * -1; else AbsCurrentAxis.X = CurrentAxis.X;
 			if (CurrentAxis.Y < 0) AbsCurrentAxis.Y = CurrentAxis.Y * -1; else AbsCurrentAxis.Y = CurrentAxis.Y;
 
-			if (CurrentAxis.X == 0.0f && CurrentAxis.Y == 0.0f) {
+			if ((CurrentAxis.X == 0.0f && CurrentAxis.Y == 0.0f) || States.MOVE_RIGHT || States.MOVE_LEFT) {
 				if (CanDefence()) 
 				{	
 					SetUpDefence();
@@ -874,7 +875,7 @@ void ASPPawnCPP::Defence(int index)
 		if (CurrentAxis.X < 0) AbsCurrentAxis.X = CurrentAxis.X * -1; else AbsCurrentAxis.X = CurrentAxis.X;
 		if (CurrentAxis.Y < 0) AbsCurrentAxis.Y = CurrentAxis.Y * -1; else AbsCurrentAxis.Y = CurrentAxis.Y;
 
-		if (CurrentAxis.X == 0.0f && CurrentAxis.Y == 0.0f) {
+		if ((CurrentAxis.X == 0.0f && CurrentAxis.Y == 0.0f) || States.MOVE_RIGHT || States.MOVE_LEFT) {
 			if (CanDefence()) {
 				Server_Defence();
 			}
@@ -1117,12 +1118,36 @@ void ASPPawnCPP::UpgradeStrongAttackMeter()
 void ASPPawnCPP::ClearStatesWhileHit()
 {
 	if (HasAuthority()) {
+
+		GetWorldTimerManager().ClearTimer(DelayTimer);
+
 		if(States.MOVE_RIGHT)States.MOVE_RIGHT = false;
 		if (States.MOVE_LEFT)States.MOVE_LEFT = false;
-		if (States.JUMP)States.JUMP = false;
-		if (States.JUMP_LEFT_WALL)States.JUMP_LEFT_WALL = false;
-		if (States.JUMP_RIGHT_WALL)States.JUMP_RIGHT_WALL = false;
-	
+		if (States.JUMP) {
+			States.JUMP = false;
+			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+		}
+		if (States.JUMP_LEFT_WALL) {
+			States.JUMP_LEFT_WALL = false;
+			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+		}
+		if (States.JUMP_RIGHT_WALL) {
+			States.JUMP_RIGHT_WALL = false;
+			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+		}
+		if (States.DEFENCE) {
+			States.DEFENCE = false;
+			GetWorldTimerManager().ClearTimer(WorkData.DefenceTimer);
+			GetWorldTimerManager().SetTimer(WorkData.DefenceTimer, this, &ASPPawnCPP::ReplenishDefence, 1.0f, true);
+		}
+		if (States.STRONG_ATTACK) {
+			States.STRONG_ATTACK = false;
+			GetWorldTimerManager().ClearTimer(WorkData.DashTimer);
+		}
+		if (States.LIGHT_ATTACK) {
+			States.LIGHT_ATTACK = false;
+			GetWorldTimerManager().ClearTimer(WorkData.LightAttackTimer);
+		}
 	
 		if (!States.CAN_MOVE)States.CAN_MOVE = true;
 		if (!States.CAN_JUMP)States.CAN_JUMP = true;
@@ -1130,9 +1155,7 @@ void ASPPawnCPP::ClearStatesWhileHit()
 		if (!States.CAN_STRONG_ATTACK)States.CAN_STRONG_ATTACK = true;
 		if (!States.CAN_DEFENCE)States.CAN_DEFENCE = true;
 		
-		if (States.DEFENCE)States.DEFENCE = false;
-		if (States.STRONG_ATTACK)States.STRONG_ATTACK = false;
-		if (States.LIGHT_ATTACK)States.LIGHT_ATTACK = false;
+		
 	}
 }
 
@@ -1717,7 +1740,12 @@ void ASPPawnCPP::CallDelayAction()
 	}
 }
 
-void ASPPawnCPP::GetHit(float hitstun, float damage, FVector knockback/*x/y are directions, z is force*/)
+void ASPPawnCPP::EndStun_Implementation()
+{
+
+}
+
+void ASPPawnCPP::GetHit_Implementation(float hitstun, float damage, FVector knockback/*x/y are directions, z is force*/)
 {
 	if (HasAuthority()) {
 
@@ -1749,7 +1777,7 @@ void ASPPawnCPP::GetHit(float hitstun, float damage, FVector knockback/*x/y are 
 	
 		WorkData.Injuries += damage - (damage / (100.0f / ((float)Attributes.Tenacity * 0.5f)));
 
-		if (WorkData.CurrentDefence < Attributes.Defence) {
+		if (WorkData.CurrentDefence == 0.0f) {
 			GetWorldTimerManager().ClearTimer(WorkData.DefenceTimer);
 			GetWorldTimerManager().SetTimer(WorkData.DefenceTimer, this, &ASPPawnCPP::ReplenishDefence, 1.0f, true);
 		}
