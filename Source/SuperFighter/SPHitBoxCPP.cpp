@@ -39,7 +39,7 @@ void ASPHitBoxCPP::Follow()
 	FVector OwnerPosition = Details.Owner->GetActorLocation();
 	FVector FollowPosition;
 	
-	FollowPosition.X = OwnerPosition.X+- Details.FollowDistance.X;
+	FollowPosition.X = OwnerPosition.X + Details.FollowDistance.X;
 	FollowPosition.Z = OwnerPosition.Z + Details.FollowDistance.Y;
 	FollowPosition.Y = 0.0f;
 	
