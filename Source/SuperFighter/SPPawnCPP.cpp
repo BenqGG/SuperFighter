@@ -757,7 +757,7 @@ void ASPPawnCPP::Defence(int index)
 			if (CurrentAxis.X < 0) AbsCurrentAxis.X = CurrentAxis.X * -1; else AbsCurrentAxis.X = CurrentAxis.X;
 			if (CurrentAxis.Y < 0) AbsCurrentAxis.Y = CurrentAxis.Y * -1; else AbsCurrentAxis.Y = CurrentAxis.Y;
 
-			if ((CurrentAxis.X == 0.0f && CurrentAxis.Y == 0.0f) || States.MOVE_RIGHT || States.MOVE_LEFT) {
+			if ((CurrentAxis.X == 0.0f && CurrentAxis.Y == 0.0f) && !States.MOVE_RIGHT && !States.MOVE_LEFT) {
 				if (CanDefence()) 
 				{	
 					SetUpDefence();
@@ -875,7 +875,7 @@ void ASPPawnCPP::Defence(int index)
 		if (CurrentAxis.X < 0) AbsCurrentAxis.X = CurrentAxis.X * -1; else AbsCurrentAxis.X = CurrentAxis.X;
 		if (CurrentAxis.Y < 0) AbsCurrentAxis.Y = CurrentAxis.Y * -1; else AbsCurrentAxis.Y = CurrentAxis.Y;
 
-		if ((CurrentAxis.X == 0.0f && CurrentAxis.Y == 0.0f) || States.MOVE_RIGHT || States.MOVE_LEFT) {
+		if ((CurrentAxis.X == 0.0f && CurrentAxis.Y == 0.0f) && !States.MOVE_RIGHT && !States.MOVE_LEFT) {
 			if (CanDefence()) {
 				Server_Defence();
 			}
@@ -1531,44 +1531,41 @@ void ASPPawnCPP::CalculateMovement(float DeltaTime)
 			States.SIDE_DASH = false;
 			if ((Forces.X >= 0.0f && Forces.X <= Attributes.Dash) || 
 				(Forces.X < 0.0f && Forces.X >= -Attributes.Dash)) {
-				if ((Forces.Y >= 0.0f && Forces.Y <= Attributes.Dash) ||
-					(Forces.Y < 0.0f && Forces.Y >= -Attributes.Dash)) {
 
-					if (WorkData.FacingRight) {
-						Forces.X = Attributes.Dash;
-					}
-					else {
-						Forces.X = -Attributes.Dash;
-					}
-					Forces.Y = 0.0f;
+				if (WorkData.FacingRight) {
+					Forces.X = Attributes.Dash;
 				}
-
+				else {
+					Forces.X = -Attributes.Dash;
+				}
+			}
+			if ((Forces.Y >= 0.0f && Forces.Y <= Attributes.Dash) ||
+				(Forces.Y < 0.0f && Forces.Y >= -Attributes.Dash)) {
+				Forces.Y = 0.0f;
 			}
 		}
 		else if (States.UP_DASH) {
 			States.UP_DASH = false;
 			if ((Forces.X >= 0.0f && Forces.X <= Attributes.Dash) ||
 				(Forces.X < 0.0f && Forces.X >= -Attributes.Dash)) {
-				if ((Forces.Y >= 0.0f && Forces.Y <= Attributes.Dash) ||
-					(Forces.Y < 0.0f && Forces.Y >= -Attributes.Dash)) {
 
-					Forces.X = 0.0f;
-					Forces.Y = Attributes.Dash;
-				}
+				Forces.X = 0.0f;
+			}
+			if ((Forces.Y >= 0.0f && Forces.Y <= Attributes.Dash) ||
+				(Forces.Y < 0.0f && Forces.Y >= -Attributes.Dash)) {
 
+				Forces.Y = Attributes.Dash;
 			}
 		}
 		if (States.DOWN_DASH) {
 			States.DOWN_DASH = false;
 			if ((Forces.X >= 0.0f && Forces.X <= Attributes.Dash) ||
 				(Forces.X < 0.0f && Forces.X >= -Attributes.Dash)) {
-				if ((Forces.Y >= 0.0f && Forces.Y <= Attributes.Dash) ||
-					(Forces.Y < 0.0f && Forces.Y >= -Attributes.Dash)) {
-
-					Forces.X = 0.0f;
-					Forces.Y = -Attributes.Dash;
-				}
-
+				Forces.X = 0.0f;
+			}
+			if ((Forces.Y >= 0.0f && Forces.Y <= Attributes.Dash) ||
+				(Forces.Y < 0.0f && Forces.Y >= -Attributes.Dash)) {
+				Forces.Y = -Attributes.Dash;
 			}
 		}
 		else if (States.SPOT_DODGE) {

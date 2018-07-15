@@ -46,7 +46,7 @@ void ASPServerCouchPawnCPP::SetPosition()
 {
 	if (HasAuthority()) {
 		if (Data.PlayersAmount == 1) {
-			SetActorLocation(Data.Players[0]->GetActorLocation(), false);
+			Data.TargetPosition = Data.Players[0]->GetActorLocation();
 		}
 		else if (Data.PlayersAmount > 1) {
 			FVector Pos1 = Data.Players[0]->GetActorLocation();
@@ -68,7 +68,7 @@ void ASPServerCouchPawnCPP::SetPosition()
 			absDistanceX = absP1X - absP2X;
 			if (absDistanceX < 0.0f) absDistanceX *= -1.0f;
 			if (absDistanceX < 400.0f) absDistanceX = 400.0f;
-			absDistanceY = (absP1Y - absP2Y ) * 1.7f;
+			absDistanceY = (absP1Y - absP2Y ) * 2.3f;
 			if (absDistanceY < 0.0f) absDistanceY *= -1.0f;
 
 
@@ -82,7 +82,7 @@ void ASPServerCouchPawnCPP::SetPosition()
 
 			}
 			else {
-				distance = (Pos1.Z - Pos2.Z) * 1.7f;
+				distance = (Pos1.Z - Pos2.Z) * 2.3f;
 			}
 
 			if (distance < 0.0f) distance *= -1.0f;
@@ -95,7 +95,7 @@ void ASPServerCouchPawnCPP::SetPosition()
 
 void ASPServerCouchPawnCPP::MoveCamera(float deltaTimer)
 {
-	float delta = deltaTimer / 1.0f;
+	float delta = deltaTimer / 0.5f;
 	FVector CurrentPosition = GetActorLocation();
 	FVector NextPosition;
 
