@@ -84,6 +84,21 @@ struct FSPPanActions {
 };
 
 USTRUCT(BlueprintType)
+struct FSPKeyStates {
+	GENERATED_BODY()
+
+	bool LEFT_KEY;
+	bool RIGHT_KEY;
+	bool UP_KEY;
+	bool DOWN_KEY;
+
+	bool LATTACK_KEY;
+	bool SATTACK_KEY;
+	bool JUMP_KEY;
+	bool DEFENCE_KEY;
+};
+
+USTRUCT(BlueprintType)
 struct FSPAnimationDetails {
 	GENERATED_BODY()
 
@@ -296,10 +311,13 @@ protected:
 		FVector CurrentPosition;
 	UPROPERTY(ReplicatedUsing = RepNot_UpdateHitStun, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		float ClientHitStun;
+	FSPKeyStates KeyStates;
+	FSPKeyStates LastKeyStates;
 
 	//Apply Forces working on player
 	void ApplyForces(float DeltaTime);
 	void CalculateMovement(float DeltaTime);
+	void CheckKeyStates();
 
 	//Return value of "value" giving its value is per second and we calc it per deltaTime
 	float ValuePerSecond(float value, float deltaTime);
@@ -345,6 +363,7 @@ protected:
 	void UpgradeStrongAttackMeter();
 
 	void ClearStatesWhileHit();
+
 
 public:
 
@@ -494,6 +513,15 @@ public:
 	UFUNCTION(Server, unreliable, WithValidation, BlueprintCallable, Category = SuperFighter)
 		void Server_Move(float AxisX);
 
+	UFUNCTION(Server, unreliable, WithValidation, BlueprintCallable, Category = SuperFighter)
+		void Server_MoveLeft();
+		
+	UFUNCTION(Server, unreliable, WithValidation, BlueprintCallable, Category = SuperFighter)
+		void Server_MoveRight();
+
+	UFUNCTION(Server, unreliable, WithValidation, BlueprintCallable, Category = SuperFighter)
+		void Server_StopMove();
+
 	UFUNCTION(Server, unreliable, WithValidation)
 		//Server Will Only detect the jump that clients asks for
 		void Server_Jump();
@@ -571,4 +599,22 @@ public:
 	bool CanDefence();
 	bool CanReleaseDefence();
 	bool CanDash();
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void SetLeftKey(bool state) { KeyStates.LEFT_KEY = state; };
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void SetRightKey(bool state) { KeyStates.RIGHT_KEY = state; };
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void SetUpKey(bool state) { KeyStates.UP_KEY = state; };
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void SetDownKey(bool state) { KeyStates.DOWN_KEY = state; };
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void SetLAttackKey(bool state) { KeyStates.LATTACK_KEY = state; };
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void SetSAttackKey(bool state) { KeyStates.SATTACK_KEY = state; };
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void SetDefenceKey(bool state) { KeyStates.DEFENCE_KEY = state; };
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void SetJumpKey(bool state) { KeyStates.JUMP_KEY = state; };
 };

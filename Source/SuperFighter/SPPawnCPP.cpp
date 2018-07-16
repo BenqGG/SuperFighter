@@ -67,6 +67,26 @@ ASPPawnCPP::ASPPawnCPP()
 	States.UP_DASH = false;
 	States.DOWN_DASH = false;
 	States.SPOT_DODGE = false;
+
+	KeyStates.LEFT_KEY = false;
+	KeyStates.RIGHT_KEY = false;
+	KeyStates.UP_KEY = false;
+	KeyStates.DOWN_KEY = false;
+
+	KeyStates.LATTACK_KEY = false;
+	KeyStates.SATTACK_KEY = false;
+	KeyStates.JUMP_KEY = false;
+	KeyStates.DEFENCE_KEY = false;
+
+	LastKeyStates.LEFT_KEY = false;
+	LastKeyStates.RIGHT_KEY = false;
+	LastKeyStates.UP_KEY = false;
+	LastKeyStates.DOWN_KEY = false;
+
+	LastKeyStates.LATTACK_KEY = false;
+	LastKeyStates.SATTACK_KEY = false;
+	LastKeyStates.JUMP_KEY = false;
+	LastKeyStates.DEFENCE_KEY = false;
 }
 
 // Called when the game starts or when spawned
@@ -86,7 +106,7 @@ void ASPPawnCPP::Tick(float DeltaTime)
 		Friction(DeltaTime);
 		Gravity(DeltaTime);
 		CalculateMovement(DeltaTime);
-
+		CheckKeyStates();
 		if (IsStun()) {
 			ManageStunState(DeltaTime);
 		}
@@ -191,6 +211,35 @@ void ASPPawnCPP::RepNot_UpdateHitStun()
 	}
 }
 
+void ASPPawnCPP::Server_MoveRight_Implementation()
+{
+	Move(true);
+}
+
+bool ASPPawnCPP::Server_MoveRight_Validate()
+{
+	return true;
+}
+
+void ASPPawnCPP::Server_MoveLeft_Implementation()
+{
+	Move(false);
+}
+
+bool ASPPawnCPP::Server_MoveLeft_Validate()
+{
+	return true;
+}
+
+void ASPPawnCPP::Server_StopMove_Implementation()
+{
+	StopMove();
+}
+
+bool ASPPawnCPP::Server_StopMove_Validate()
+{
+	return true;
+}
 
 void ASPPawnCPP::HitPunch(bool FromClient, FVector2D ClientAxisPosition)
 {
@@ -1664,6 +1713,85 @@ void ASPPawnCPP::CalculateMovement(float DeltaTime)
 				Client_Forces.X = -Attributes.JumpPower / StaticAttributes.WallJumpXModifier;
 			}
 		}
+	}
+}
+
+void ASPPawnCPP::CheckKeyStates()
+{
+	if (!HasAuthority()) {
+		if (LastKeyStates.DEFENCE_KEY && !KeyStates.DEFENCE_KEY) {
+			Server_ReleaseDefence();
+		}
+		else if (LastKeyStates.JUMP_KEY && !KeyStates.JUMP_KEY) {
+			Server_StopJump();
+		}
+		else if (LastKeyStates.SATTACK_KEY && !KeyStates.SATTACK_KEY) {
+			Server_ReleaseStrongAttack();
+		}
+		else if (LastKeyStates.LEFT_KEY && !KeyStates.LEFT_KEY) {
+			if (States.MOVE_LEFT) {
+				Server_StopMove();
+			}
+		}
+		else if (LastKeyStates.RIGHT_KEY && !KeyStates.RIGHT_KEY) {
+			if (States.MOVE_RIGHT) {
+				Server_StopMove();
+			}
+		}
+		else if (KeyStates.DEFENCE_KEY) {
+			if (KeyStates.RIGHT_KEY || KeyStates.LEFT_KEY) {
+				Server_SideDash();
+			}
+			else if (KeyStates.UP_KEY) {
+				Server_UpDash();
+			}
+			else if (KeyStates.DOWN_KEY) {
+				Server_DownDash();
+			}
+			else {
+				Server_Defence();
+			}
+		}
+		else if (KeyStates.JUMP_KEY) {
+			Server_Jump();
+			KeyStates.JUMP_KEY = false;
+			LastKeyStates.JUMP_KEY = false;
+		}
+		else if (KeyStates.LATTACK_KEY)
+		{
+			if (KeyStates.UP_KEY) {
+				Server_UpperLightAttack();
+			}
+			else if (KeyStates.DOWN_KEY) {
+				Server_DownLightAttack();
+			}
+			else {
+				Server_LightAttack();
+			}
+		}
+		else if (KeyStates.SATTACK_KEY)
+		{
+			if (KeyStates.RIGHT_KEY || KeyStates.LEFT_KEY) {
+				Server_SideStrongAttack();
+			}
+			else if (KeyStates.UP_KEY) {
+				Server_UpperStrongAttack();
+			}
+			else if (KeyStates.DOWN_KEY) {
+				Server_DownStrongAttack();
+			}
+			else {
+				Server_StrongAttack();
+			}
+		}
+		else if (KeyStates.RIGHT_KEY) {
+			Server_MoveRight();
+		}
+		else if (KeyStates.LEFT_KEY) {
+			Server_MoveLeft();
+		}
+
+		LastKeyStates = KeyStates;
 	}
 }
 
