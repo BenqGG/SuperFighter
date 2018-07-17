@@ -24,6 +24,9 @@ void ASPHitBoxCPP::SetHitbox(FSPHitBoxDetails l_details)
 		this->SetActorLocation(FVector(Details.Position.X, 0.0f, Details.Position.Y), false);
 		GetWorldTimerManager().SetTimer(WorkData.ActivationTimer, this, &ASPHitBoxCPP::ActivateHitBox, Details.ActivationTime, false);
 		MainBody->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+		MissileDetails.Missile = false;
+		MissileDetails.Launched = false;
 	}
 		
 }
@@ -53,6 +56,9 @@ void ASPHitBoxCPP::Tick( float DeltaTime )
 	if (Details.FollowPlayer) {
 		Follow();
 	}
+	if (MissileDetails.Missile) {
+		UpdateMissile(DeltaTime);
+	}
 
 }
 
@@ -70,4 +76,32 @@ void ASPHitBoxCPP::DestroyHitBox()
 {
 	GetWorldTimerManager().ClearTimer(WorkData.DestroyTimer);
 	AActor::Destroy(true, false);
+}
+
+void ASPHitBoxCPP::UpdateMissile(float DeltaTime)
+{
+	if (HasAuthority()) {
+		if (MissileDetails.Launched) {
+			FVector CurrentPosition = GetActorLocation();
+			CurrentPosition.X += MissileDetails.Trajectory.X * (MissileDetails.Trajectory.Z * (DeltaTime / 1.0f));
+			CurrentPosition.Y += MissileDetails.Trajectory.Y * (MissileDetails.Trajectory.Z * (DeltaTime / 1.0f));
+			SetActorLocation(CurrentPosition, true);
+		}
+	}
+}
+
+void ASPHitBoxCPP::SetMissile()
+{
+	if (HasAuthority()) {
+		if(MissileDetails.Missile)
+			GetWorldTimerManager().SetTimer(MissileDetails.Timer, this, &ASPHitBoxCPP::Launch, Details.ActivationTime, false);
+	}
+}
+
+void ASPHitBoxCPP::Launch_Implementation()
+{
+	if (HasAuthority()) {
+		MissileDetails.Launched = true;
+		GetWorldTimerManager().ClearTimer(MissileDetails.Timer);
+	}
 }

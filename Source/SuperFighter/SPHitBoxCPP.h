@@ -58,6 +58,21 @@ struct FSPHitBoxWorkData {
 	bool Active;
 };
 
+USTRUCT(BlueprintType)
+struct FSPMissileDetails {
+
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	bool Missile;
+
+	bool Launched;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	FVector Trajectory;
+
+	FTimerHandle Timer;
+};
+
 UCLASS()
 class SUPERFIGHTER_API ASPHitBoxCPP : public AActor
 {
@@ -73,6 +88,9 @@ protected:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 	USphereComponent* MainBody;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FSPMissileDetails MissileDetails;
 	
 		
 public:	
@@ -96,4 +114,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 	void DestroyHitBox();
 
+	void UpdateMissile(float DeltaTime);
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void SetMissile();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
+		void Launch();
 };

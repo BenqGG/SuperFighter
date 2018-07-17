@@ -106,7 +106,6 @@ void ASPPawnCPP::Tick(float DeltaTime)
 		Friction(DeltaTime);
 		Gravity(DeltaTime);
 		CalculateMovement(DeltaTime);
-		CheckKeyStates();
 		if (IsStun()) {
 			ManageStunState(DeltaTime);
 		}
@@ -123,6 +122,7 @@ void ASPPawnCPP::Tick(float DeltaTime)
 		Friction(DeltaTime);
 		Gravity(DeltaTime);
 		CalculateMovement(DeltaTime);
+		CheckKeyStates();
 		
 		//GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, WorkData.PossitionError.ToCompactString());
 		/*AController *check = GetController();
@@ -1720,74 +1720,112 @@ void ASPPawnCPP::CheckKeyStates()
 {
 	if (!HasAuthority()) {
 		if (LastKeyStates.DEFENCE_KEY && !KeyStates.DEFENCE_KEY) {
+			if(CanReleaseDefence())
 			Server_ReleaseDefence();
 		}
+		else if (!LastKeyStates.DEFENCE_KEY && States.DEFENCE) {
+			if (CanReleaseDefence())
+				Server_ReleaseDefence();
+		}
 		else if (LastKeyStates.JUMP_KEY && !KeyStates.JUMP_KEY) {
+			if (CanStopJump())
 			Server_StopJump();
 		}
+		else if (!LastKeyStates.JUMP_KEY && (States.JUMP || States.JUMP_LEFT_WALL || States.JUMP_RIGHT_WALL) ) {
+			if (CanStopJump())
+				Server_StopJump();
+		}
 		else if (LastKeyStates.SATTACK_KEY && !KeyStates.SATTACK_KEY) {
+			if (CanReleaseStrongAttack())
+			Server_ReleaseStrongAttack();
+		}
+		else if (!LastKeyStates.SATTACK_KEY && States.STRONG_ATTACK) {
+			if (CanReleaseStrongAttack())
 			Server_ReleaseStrongAttack();
 		}
 		else if (LastKeyStates.LEFT_KEY && !KeyStates.LEFT_KEY) {
-			if (States.MOVE_LEFT) {
+			if (States.MOVE_LEFT && CanStopMove()) {
 				Server_StopMove();
 			}
 		}
+		else if (!LastKeyStates.LEFT_KEY && States.MOVE_LEFT) {
+			if(CanStopMove())
+			Server_StopMove();
+		}
 		else if (LastKeyStates.RIGHT_KEY && !KeyStates.RIGHT_KEY) {
-			if (States.MOVE_RIGHT) {
+			if (States.MOVE_RIGHT && CanStopMove()) {
 				Server_StopMove();
 			}
+		}
+		else if (!LastKeyStates.RIGHT_KEY && States.MOVE_RIGHT) {
+			if (CanStopMove())
+			Server_StopMove();
 		}
 		else if (KeyStates.DEFENCE_KEY) {
 			if (KeyStates.RIGHT_KEY || KeyStates.LEFT_KEY) {
+				if(CanDash())
 				Server_SideDash();
 			}
 			else if (KeyStates.UP_KEY) {
+				if (CanDash())
 				Server_UpDash();
 			}
 			else if (KeyStates.DOWN_KEY) {
+				if (CanDash())
 				Server_DownDash();
 			}
 			else {
+				if (CanDefence())
 				Server_Defence();
 			}
 		}
 		else if (KeyStates.JUMP_KEY) {
-			Server_Jump();
-			KeyStates.JUMP_KEY = false;
-			LastKeyStates.JUMP_KEY = false;
+			if (CanJump()) {
+				Server_Jump();
+				KeyStates.JUMP_KEY = false;
+				LastKeyStates.JUMP_KEY = false;
+			}
+			
 		}
 		else if (KeyStates.LATTACK_KEY)
 		{
-			if (KeyStates.UP_KEY) {
-				Server_UpperLightAttack();
-			}
-			else if (KeyStates.DOWN_KEY) {
-				Server_DownLightAttack();
-			}
-			else {
-				Server_LightAttack();
+			if (CanLightAttack())
+			{
+				if (KeyStates.UP_KEY) {
+					Server_UpperLightAttack();
+				}
+				else if (KeyStates.DOWN_KEY) {
+					Server_DownLightAttack();
+				}
+				else {
+					Server_LightAttack();
+				}
 			}
 		}
 		else if (KeyStates.SATTACK_KEY)
 		{
-			if (KeyStates.RIGHT_KEY || KeyStates.LEFT_KEY) {
-				Server_SideStrongAttack();
-			}
-			else if (KeyStates.UP_KEY) {
-				Server_UpperStrongAttack();
-			}
-			else if (KeyStates.DOWN_KEY) {
-				Server_DownStrongAttack();
-			}
-			else {
-				Server_StrongAttack();
+			if (CanStrongAttack()) {
+
+				if (KeyStates.RIGHT_KEY || KeyStates.LEFT_KEY) {
+					Server_SideStrongAttack();
+				}
+				else if (KeyStates.UP_KEY) {
+					Server_UpperStrongAttack();
+				}
+				else if (KeyStates.DOWN_KEY) {
+					Server_DownStrongAttack();
+				}
+				else {
+					Server_StrongAttack();
+				}
 			}
 		}
 		else if (KeyStates.RIGHT_KEY) {
+			if(!States.MOVE_RIGHT && CanMove())
 			Server_MoveRight();
 		}
 		else if (KeyStates.LEFT_KEY) {
+			if (!States.MOVE_LEFT && CanMove())
 			Server_MoveLeft();
 		}
 
@@ -1952,11 +1990,7 @@ bool ASPPawnCPP::CanMove() {
 			return false;
 	}
 	else {
-		if (!IsStun() && !States.BUSY && States.CAN_MOVE && !States.DASH && !States.DEFENCE
-			&& !States.LIGHT_ATTACK && !States.STRONG_ATTACK) 
-			return true;
-		else 
-			return false;
+		return true;
 	}
 	
 }
@@ -1969,10 +2003,7 @@ bool ASPPawnCPP::CanStopMove() {
 			return false;
 	}
 	else {
-		if (States.MOVE_LEFT || States.MOVE_RIGHT)
-			return true; 
-		else
-			return false;
+		return true;
 	}
 }
 
@@ -1986,19 +2017,15 @@ bool ASPPawnCPP::CanDelayAction() {
 		}
 	}
 	else {
-		if (!IsStun()) {
-			return true;
-		}
-		else {
-			return false;
-		}
+		return true;
 	}
 }
 
 bool ASPPawnCPP::CanJump() { 
 	if (HasAuthority()) {
 		if (!IsStun() && !States.BUSY && States.CAN_JUMP && !States.DEFENCE && !States.DASH
-			&& !States.LIGHT_ATTACK && !States.STRONG_ATTACK) {
+			&& !States.LIGHT_ATTACK && !States.STRONG_ATTACK && !States.JUMP &&
+			!States.JUMP_LEFT_WALL && !States.JUMP_RIGHT_WALL) {
 			if (WorkData.AirJumped < Attributes.AirJumpAmount || GroundUnderFeet()
 				|| GroundNextToFeet(true) || GroundNextToFeet(false)) {
 				return true;
@@ -2009,15 +2036,7 @@ bool ASPPawnCPP::CanJump() {
 			return false;
 	}
 	else {
-		if (!IsStun() && !States.BUSY && States.CAN_JUMP && !States.DEFENCE && !States.DASH
-			&& !States.LIGHT_ATTACK && !States.STRONG_ATTACK) {
-			if (true) {
-				return true;
-			}
-			else return false;
-		}
-		else
-			return false;
+		return true;
 	}
 	
 }
@@ -2030,10 +2049,7 @@ bool ASPPawnCPP::CanStopJump() {
 		return false;
 	}
 	else {
-		if (States.JUMP || States.JUMP_LEFT_WALL || States.JUMP_RIGHT_WALL) {
-			return true;
-		}
-		return false;
+		return true;
 	}
 }
 
@@ -2059,11 +2075,7 @@ bool ASPPawnCPP::CanStrongAttack() {
 			return false;
 	}
 	else {
-		if (!IsStun() && !States.BUSY && States.CAN_STRONG_ATTACK && !States.DEFENCE && !States.DASH
-			&& !States.STRONG_ATTACK)
-			return true;
-		else
-			return false;
+		return true;
 	}
 }
 
@@ -2075,10 +2087,7 @@ bool ASPPawnCPP::CanReleaseStrongAttack() {
 		return false;
 	}
 	else {
-		if (States.STRONG_ATTACK) {
-			return true;
-		}
-		return false;
+		return true;
 	}
 }
 
@@ -2093,27 +2102,19 @@ bool ASPPawnCPP::CanDefence() {
 			return false;
 	}
 	else {
-		if (!IsStun() && !States.BUSY && States.CAN_DEFENCE && !States.DEFENCE 
-			&& !States.DASH && !States.LIGHT_ATTACK && !States.STRONG_ATTACK) {
-			return true;
-		}
-		else
-			return false;
+		return true;
 	}
 }
 
 bool ASPPawnCPP::CanReleaseDefence() {
-	if (HasAuthority()) {
+	if (HasAuthority()){
 		if (States.DEFENCE) {
 			return true;
 		}
 		return false;
 	}
 	else {
-		if (States.DEFENCE) {
-			return true;
-		}
-		return false;
+		return true;
 	}
 }
 
@@ -2128,11 +2129,6 @@ bool ASPPawnCPP::CanDash()
 			return false;
 	}
 	else {
-		if (!IsStun() && !States.BUSY && States.CAN_DASH && !States.DASH && !States.LIGHT_ATTACK
-			&& !States.STRONG_ATTACK && !States.DEFENCE) {
-			return true;
-		}
-		else
-			return false;
+		return true;
 	}
 }
