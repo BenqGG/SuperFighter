@@ -5,6 +5,7 @@
 #include "GameFramework/Actor.h"
 #include "Net/UnrealNetwork.h"
 #include "DrawDebugHelpers.h"
+#include "PaperFlipbookComponent.h"
 #include "SPHitBoxCPP.generated.h"
 
 UENUM(BlueprintType)
@@ -66,11 +67,22 @@ struct FSPMissileDetails {
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 	bool Missile;
 
-	bool Launched;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	float ExplodeTime;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 	FVector Trajectory;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	UPaperFlipbook *Prepare;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	UPaperFlipbook *Launch;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	UPaperFlipbook *Hit;
+
+
 	FTimerHandle Timer;
+	bool Launched;
 };
 
 UCLASS()
@@ -88,6 +100,9 @@ protected:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 	USphereComponent* MainBody;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	UPaperFlipbookComponent* Animation;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		FSPMissileDetails MissileDetails;
@@ -119,6 +134,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void SetMissile();
 
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
-		void Launch();
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void ExplodeOnHit();
 };
