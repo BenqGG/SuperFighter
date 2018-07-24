@@ -136,4 +136,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void ExplodeOnHit();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
+		void HideAnimation();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
+		void ShowAnimation();
 };

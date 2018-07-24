@@ -15,6 +15,7 @@ ASPHitBoxCPP::ASPHitBoxCPP()
 	RootComponent = MainBody;
 	Animation = CreateDefaultSubobject<UPaperFlipbookComponent>(TEXT("Animation"));
 	Animation->SetupAttachment(RootComponent);
+	Animation->SetVisibility(false, false);
 	WorkData.Active = false;
 }
 
@@ -27,10 +28,9 @@ void ASPHitBoxCPP::SetHitbox(FSPHitBoxDetails l_details)
 		GetWorldTimerManager().SetTimer(WorkData.ActivationTimer, this, &ASPHitBoxCPP::ActivateHitBox, Details.ActivationTime + 0.01f, false);
 		MainBody->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		Animation->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		Animation->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		Animation->SetVisibility(false);
 		MissileDetails.Missile = false;
 		MissileDetails.Launched = false;
+		HideAnimation();
 	}
 		
 }
@@ -107,11 +107,11 @@ void ASPHitBoxCPP::SetMissile()
 {
 	if (HasAuthority()) {
 		if (MissileDetails.Missile) {
-			Animation->SetVisibility(true);
+			ShowAnimation();
 			Animation->SetFlipbook(MissileDetails.Prepare);
-		/*	if (MissileDetails.Trajectory.X < 0) {
+			if (MissileDetails.Trajectory.X < 0) {
 			Animation->SetRelativeRotation(FRotator(0.0f, 180.0f, 0.0f), false);
-			}*/
+			}
 		}	
 	}
 }
@@ -125,4 +125,12 @@ void ASPHitBoxCPP::ExplodeOnHit()
 		GetWorldTimerManager().ClearTimer(WorkData.DestroyTimer);
 		GetWorldTimerManager().SetTimer(WorkData.DestroyTimer, this, &ASPHitBoxCPP::DestroyHitBox, MissileDetails.ExplodeTime, false);
 	}
+}
+
+void ASPHitBoxCPP::HideAnimation_Implementation()
+{
+}
+
+void ASPHitBoxCPP::ShowAnimation_Implementation()
+{
 }
