@@ -227,7 +227,6 @@ struct FSPWorkData {
 	GENERATED_BODY()
 
 		FTimerHandle JumpTimer;
-		FTimerHandle DefenceTimer;
 		FTimerHandle LightAttackTimer;
 		FTimerHandle StrongAttackTimer;
 		FTimerHandle DashTimer;
@@ -236,33 +235,21 @@ struct FSPWorkData {
 		float HitStun = 0.0f;
 		//+1 every 0.1 second
 		int StrongAttackMeter = 0;
-
 		bool WasHit = false;
 		FVector HitForce;
-
 		bool AddingForce = false;
 		FVector AddForce;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		int AirJumped;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
-		float ClientHitStun = 0.0f;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		bool IsLocal;
-
-	UPROPERTY()
 		bool FacingRight;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		float CurrentDefence = 0.0f;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		//More injuried you are the further you fly after getting hit and how long hit stun last, 
 		//(SOME CHAPMIONS MAY USED TO SOME ADDITIONAL THINGS)
 		//You can not add to hit stun (you can only hit stun unstun enemy, if he is already hit stun then hit stun wont replenish
 		int Injuries = 0;
+		float DefenceDelta = 0.0f;
+
+		bool CanJumpAgain = true;
 };
 
 USTRUCT(BlueprintType)
@@ -298,19 +285,34 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 	FVector2D Forces;
 	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
-	FVector2D Client_Forces;
-	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		FSPPawnAttributes Attributes;
-	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		FSPPawnStates States;
+	UPROPERTY(ReplicatedUsing = RepNot_UpdateStates, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FSPPawnStates ClientStates;
 	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		FSPStaticPawnAttributes StaticAttributes;
-	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		FSPWorkData WorkData;
+
+	UPROPERTY(ReplicatedUsing = RepNot_UpdateClientForces, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FVector2D Client_Forces;
 	UPROPERTY(ReplicatedUsing = RepNot_UpdatePosition, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
-		FVector CurrentPosition;
+		FVector ClientPosition;
 	UPROPERTY(ReplicatedUsing = RepNot_UpdateHitStun, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		float ClientHitStun;
+	UPROPERTY(ReplicatedUsing = RepNot_UpdateStrongAttackMeter, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		int ClientStrongAttackMeter;
+	UPROPERTY(ReplicatedUsing = RepNot_UpdateAirJumped, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		int ClientAirJumped;
+	UPROPERTY(ReplicatedUsing = RepNot_UpdateCurrentDefence, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		float ClientCurrentDefence;
+	UPROPERTY(ReplicatedUsing = RepNot_UpdateInjuries, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		int ClientInjuries;
+	UPROPERTY(ReplicatedUsing = RepNot_UpdateAnimation, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		int ClientAnimation;
+
+
 	FSPKeyStates KeyStates;
 	FSPKeyStates LastKeyStates;
 
@@ -457,6 +459,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void Defence(int index = 0/*0 - check, 1 - defend, 2 - sidedash, 3 - updash, 4 - downdash/spotdodge*/);
 
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void SetClientAnimation(int index);
+
 	UFUNCTION(Server, unreliable, WithValidation)
 		//Server Will Only detect the jump that clients asks for
 		void Server_Defence();
@@ -492,6 +497,9 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
 		void DrawStunMeter(float Radius);
 
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
+		void PlayClientAnimation(int index);
+
 	void SetAsLocal() { WorkData.IsLocal = true; }
 
 	void StopDashForces();
@@ -509,6 +517,20 @@ public:
 	void RepNot_UpdatePosition();
 	UFUNCTION()
 	void RepNot_UpdateHitStun();
+	UFUNCTION()
+	void RepNot_UpdateClientForces();
+	UFUNCTION()
+	void RepNot_UpdateStates();
+	UFUNCTION()
+	void RepNot_UpdateStrongAttackMeter();
+	UFUNCTION()
+	void RepNot_UpdateAirJumped();
+	UFUNCTION()
+	void RepNot_UpdateCurrentDefence();
+	UFUNCTION()
+		void RepNot_UpdateInjuries();
+	UFUNCTION()
+		void RepNot_UpdateAnimation();
 
 	UFUNCTION(Server, unreliable, WithValidation, BlueprintCallable, Category = SuperFighter)
 		void Server_Move(float AxisX);
@@ -535,6 +557,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void ManageStunState(float DeltaTime);
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void ManageDefence(float DeltaTime);
 
 	UFUNCTION(Server, unreliable, WithValidation)
 		void Server_HitPunch(FVector2D AxisPosition);
@@ -585,6 +609,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		float StrongAttackMeter();
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		float CurrentDefence();
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 	bool IsStun();
