@@ -111,6 +111,13 @@ void ASPPawnCPP::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 	
 	if (HasAuthority()) {
+		ClientPosition = GetActorLocation();
+		Client_Forces = Forces;
+		ClientStates = States;
+		ClientAirJumped = WorkData.AirJumped;
+		ClientInjuries = WorkData.Injuries;
+		ClientCurrentDefence = WorkData.CurrentDefence;
+
 		ApplyForces(DeltaTime);
 		Friction(DeltaTime);
 		Gravity(DeltaTime);
@@ -122,15 +129,8 @@ void ASPPawnCPP::Tick(float DeltaTime)
 		if (States.DEFENCE) {
 			DrawDefence();
 		}
-		
-		ClientPosition = GetActorLocation();
-		Client_Forces = Forces;
-		ClientStates = States;
-		ClientAirJumped = WorkData.AirJumped;
-		ClientInjuries = WorkData.Injuries;
-		ClientCurrentDefence = WorkData.CurrentDefence;
 
-		GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, FString::SanitizeFloat(GetController()->PlayerState->ExactPing));		
+		GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, FString::SanitizeFloat(GetController()->PlayerState->ExactPing));
 	}
 	else {
 		ApplyForces(DeltaTime);
@@ -145,9 +145,12 @@ void ASPPawnCPP::Tick(float DeltaTime)
 			DrawDefence();
 		}
 		CheckKeyStates();
+		if (Forces.X == 0.0f && Forces.Y == 0.0f) {
+			if (!GetActorLocation().Equals(ClientPosition, 0.0f))
+				SetActorLocation(ClientPosition, false);
+		}
 
 		//FixPossitionError();
-		
 		//GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, WorkData.PossitionError.ToCompactString());
 		/*AController *check = GetController();
 		if (IsValid(check)) {
@@ -175,29 +178,27 @@ void ASPPawnCPP::PlayClientAnimation_Implementation(int index)
 
 void ASPPawnCPP::StopDashForces()
 {
-	if (HasAuthority()) {
 		if (Forces.X > 0) {
-			if ( Forces.X <= Attributes.Dash) {
+			if ( Forces.X <= Attributes.Dash * 2.0f) {
 				Forces.X = 0.0f;
 			}
 		}
 		else {
-			if (Forces.X >= -Attributes.Dash) {
+			if (Forces.X >= -Attributes.Dash* 2.0f) {
 				Forces.X = 0.0f;
 			}
 		}
 
 		if (Forces.Y > 0) {
-			if (Forces.Y <= Attributes.Dash) {
+			if (Forces.Y <= Attributes.Dash* 2.0f) {
 				Forces.Y = 0.0f;
 			}
 		}
 		else {
-			if (Forces.Y >= -Attributes.Dash) {
+			if (Forces.Y >= -Attributes.Dash* 2.0f) {
 				Forces.Y = 0.0f;
 			}
 		}
-	}
 }
 
 void ASPPawnCPP::CallEndViewTarget()
@@ -250,6 +251,7 @@ void ASPPawnCPP::RepNot_UpdateClientForces()
 {
 	if (!HasAuthority()) {
 		Forces = Client_Forces;
+		//GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Purple, "Forces");
 	}
 }
 
@@ -257,21 +259,41 @@ void ASPPawnCPP::RepNot_UpdateStates()
 {
 	if (!HasAuthority()) {
 		if (ClientStates.MOVE_LEFT && !States.MOVE_LEFT) {
-			FRotator rotation(0.0f, 180.0f, 0.0f);
-			WorkData.FacingRight = false;
-			animation->SetRelativeRotation(rotation, false);
+			Move(false);
 		}
 		else if (ClientStates.MOVE_RIGHT && !States.MOVE_RIGHT) {
-			FRotator rotation(0.0f, 0.0f, 0.0f);
-			WorkData.FacingRight = true;
-			animation->SetRelativeRotation(rotation, false);
+			Move(true);
+		}
+		else if ( (!ClientStates.MOVE_RIGHT && States.MOVE_RIGHT) || (!ClientStates.MOVE_LEFT && States.MOVE_LEFT) ) {
+			StopMove();
 		}
 
-		if (ClientStates.DASH && !States.DASH)
-			DodgeBlink(true);
+		if ( (ClientStates.JUMP && !States.JUMP) || (ClientStates.JUMP_LEFT_WALL && !States.JUMP_LEFT_WALL)
+			|| (ClientStates.JUMP_RIGHT_WALL && !States.JUMP_RIGHT_WALL) ) {
+			Jump();
+		}
+		//Do we need to check for this?
+		/*else if ((!ClientStates.JUMP && States.JUMP) || (!ClientStates.JUMP_LEFT_WALL && States.JUMP_LEFT_WALL)
+			|| (!ClientStates.JUMP_RIGHT_WALL && States.JUMP_RIGHT_WALL)) {
+			StopJump();
+		}*/
 
-		if (!ClientStates.DASH && States.DASH)
-			DodgeBlink(false);
+		if (ClientStates.DASH && !States.DASH){
+				SetUpDash();
+		}
+		
+		/*DO we need to check for this?
+		if (!ClientStates.DASH && States.DASH) {
+			StopDash();
+		}*/
+
+		if (ClientStates.DEFENCE && !States.DEFENCE) {
+			SetUpDefence();
+		}
+
+		if (!ClientStates.DEFENCE && States.DEFENCE) {
+			ReleaseDefence();
+		}
 
 		States = ClientStates;
 	}
@@ -379,9 +401,9 @@ void ASPPawnCPP::ManageStunState(float DeltaTime)
 		WorkData.HitStun -= DeltaTime;
 		if (WorkData.HitStun <= 0.0f) {
 			WorkData.HitStun = 0.0f;
-			if (HasAuthority()) {
-				EndStun();
-			}
+			
+			EndStun();
+			
 		}
 		else {
 			float StunMeterRadius = (WorkData.HitStun * 50.0f) - 5;
@@ -621,9 +643,11 @@ void ASPPawnCPP::Jump()
 		}
 	}
 	else {
-		if (CanJump()) {
-			Server_Jump();
-		}
+		float PingDelta = GetWorld()->GetFirstPlayerController()->PlayerState->Ping * 2.0f;
+		PingDelta /= 1000.0f;
+		GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+		GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, Attributes.JumpTime - PingDelta, false);
+		Actions.Jump.ExecuteIfBound();
 	}
 }
 
@@ -657,9 +681,14 @@ void ASPPawnCPP::StopJump()
 		}
 	}
 	else {
-		if (CanStopJump()) {
-			Server_StopJump();
-		}
+		States.JUMP = false;
+		States.JUMP_LEFT_WALL = false;
+		States.JUMP_RIGHT_WALL = false;
+		ClientStates.JUMP = false;
+		ClientStates.JUMP_LEFT_WALL = false;
+		ClientStates.JUMP_RIGHT_WALL = false;
+		GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+		Actions.StopJump.ExecuteIfBound();
 	}
 }
 
@@ -939,13 +968,7 @@ void ASPPawnCPP::Defence(int index)
 			}
 			else if (AbsCurrentAxis.X >= AbsCurrentAxis.Y) {
 				if (CanDash()) {
-					GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, "-------------------------------");
-					GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(CurrentAxis.Y));
-					GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(CurrentAxis.X));
-					GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, "SIDE DASH MOVE");
-					GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(AbsCurrentAxis.Y));
-					GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(AbsCurrentAxis.X));
-					GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, "-------------------------------");
+					
 					States.SIDE_DASH = true;
 					SetUpDash();
 
@@ -958,13 +981,7 @@ void ASPPawnCPP::Defence(int index)
 			else {
 				if (CurrentAxis.Y > 0.0f) {
 					if (CanDash()) {
-						GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, "-------------------------------");
-						GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(CurrentAxis.Y));
-						GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(CurrentAxis.X));
-							GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, "UP DASH MOVE");
-							GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(AbsCurrentAxis.Y));
-							GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(AbsCurrentAxis.X));
-							GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, "-------------------------------");
+					
 						States.UP_DASH = true;
 						SetUpDash();
 
@@ -977,13 +994,7 @@ void ASPPawnCPP::Defence(int index)
 				else {
 					if (CanDash()) {
 						if (States.ON_GROUND) {
-							GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, "-------------------------------");
-							GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(CurrentAxis.Y));
-							GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(CurrentAxis.X));
-								GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, "SPOT DODGE MOVE");
-								GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(AbsCurrentAxis.Y));
-								GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(AbsCurrentAxis.X));
-								GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, "-------------------------------");
+							
 							States.SPOT_DODGE = true;
 							SetUpDash();
 
@@ -991,13 +1002,7 @@ void ASPPawnCPP::Defence(int index)
 						}
 							
 						else {
-							GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, "-------------------------------");
-							GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(CurrentAxis.Y));
-							GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(CurrentAxis.X));
-								GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, "DOWN DASH MOVE");
-								GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(AbsCurrentAxis.Y));
-								GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::SanitizeFloat(AbsCurrentAxis.X));
-								GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, "-------------------------------");
+							
 							States.DOWN_DASH = true;
 							SetUpDash();
 
@@ -1129,9 +1134,8 @@ void ASPPawnCPP::ReleaseDefence()
 		}
 	}
 	else {
-		if (CanReleaseDefence()) {
-			Server_ReleaseDefence();
-		}
+		ClearDefence();
+		Actions.ReleaseDefence.ExecuteIfBound();
 	}
 }
 
@@ -1175,9 +1179,7 @@ void ASPPawnCPP::ChangeAnimation(FSPAnimationDetails details)
 
 void ASPPawnCPP::ChangeMovementSpeed(float speed)
 {
-	if (HasAuthority()) {
-		Attributes.MoveSpeed = speed;
-	}
+	Attributes.MoveSpeed = speed;
 }
 
 void ASPPawnCPP::AddForce(FVector force)
@@ -1219,9 +1221,12 @@ void ASPPawnCPP::Friction(float DeltaTime)
 
 void ASPPawnCPP::Gravity(float DeltaTime)
 {
-		if(!States.DASH && !States.JUMP && !States.JUMP_LEFT_WALL && !States.JUMP_RIGHT_WALL)
-		Forces.Y -= ValuePerSecond(Attributes.Gravity, DeltaTime);
-	
+	if (!GroundUnderFeet() && !States.DASH && !States.JUMP && !States.JUMP_LEFT_WALL && !States.JUMP_RIGHT_WALL) {
+		if ((States.LIGHT_ATTACK || States.STRONG_ATTACK) && Forces.Y < 0.0f)
+			Forces.Y -= ValuePerSecond(Attributes.Gravity, DeltaTime) / 10.0f;
+		else
+			Forces.Y -= ValuePerSecond(Attributes.Gravity, DeltaTime);
+		}
 }
 
 void ASPPawnCPP::FixPossitionError()
@@ -1354,6 +1359,10 @@ void ASPPawnCPP::SetUpDefence()
 		//GetWorldTimerManager().ClearTimer(WorkData.DefenceTimer);
 		//GetWorldTimerManager().SetTimer(WorkData.DefenceTimer, this, &ASPPawnCPP::UseDefence, 1.0f, true);
 	}
+	else {
+		GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+		Actions.Defence.ExecuteIfBound();
+	}
 }
 
 void ASPPawnCPP::ClearDefence()
@@ -1370,6 +1379,10 @@ void ASPPawnCPP::ClearDefence()
 
 		//Replaced by manage defence
 		//GetWorldTimerManager().ClearTimer(WorkData.DefenceTimer);
+	}
+	else {
+		States.DEFENCE = false;
+		ClientStates.DEFENCE = false;
 	}
 }
 
@@ -1440,6 +1453,29 @@ void ASPPawnCPP::SetUpDash()
 
 		DodgeBlink(true);
 	}
+	else {
+		float PingDelta = GetWorld()->GetFirstPlayerController()->PlayerState->Ping * 2.0f;
+		PingDelta /= 1000.0f;
+
+		if (States.SPOT_DODGE) {
+			GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, Attributes.SpotDodgeTime - PingDelta, false);
+		}
+		else {
+			GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, Attributes.DashTime - PingDelta, false);			}
+
+		DodgeBlink(true);
+		//We check here client states because these are from server and they call SetUpDash before we do States = ClientStates
+		if (ClientStates.SPOT_DODGE) {
+			Actions.SpotDodge.ExecuteIfBound();
+		}
+		else if (ClientStates.ON_GROUND) {
+			Actions.Dash.ExecuteIfBound();
+		}
+		else {
+			Actions.AirDash.ExecuteIfBound();
+		}
+		GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+	}
 }
 
 void ASPPawnCPP::StopDash()
@@ -1461,6 +1497,17 @@ void ASPPawnCPP::StopDash()
 		DodgeBlink(false);
 		StopDashForces();
 		DashEnd();
+	}
+	else {
+		
+		if (States.DASH) {
+			States.DASH = false;
+			ClientStates.DASH = false;
+			GetWorldTimerManager().ClearTimer(WorkData.DashTimer);
+			DodgeBlink(false);
+			StopDashForces();
+			DashEnd();
+		}
 	}
 }
 
@@ -1603,14 +1650,14 @@ void ASPPawnCPP::ApplyForces(float DeltaTime)
 		if (Forces.Y == 0.0f && !States.ON_GROUND) {
 			if (GroundUnderFeet()) {
 				States.ON_GROUND = true;
-				if(HasAuthority())
-				Actions.TouchGround.ExecuteIfBound();
+				if (HasAuthority())
+					CallTouchGround();
 			}
 		}else if (Forces.Y != 0.0f && States.ON_GROUND) {
 			if (!GroundUnderFeet()) {
 				States.ON_GROUND = false;
 				if (HasAuthority())
-				Actions.LeaveGround.ExecuteIfBound();
+					CallLeaveGround();
 			}
 		}
 
@@ -1894,6 +1941,23 @@ void ASPPawnCPP::Move(bool right)
 			Actions.Move.ExecuteIfBound();
 		}
 	}
+	else {
+		if (right) {
+			if (!WorkData.FacingRight) {
+				FRotator rotation(0.0f, 0.0f, 0.0f);
+				WorkData.FacingRight = true;
+				animation->SetRelativeRotation(rotation, false);
+			}
+		}
+		else {
+			if (WorkData.FacingRight) {
+				FRotator rotation(0.0f, 180.0f, 0.0f);
+				WorkData.FacingRight = false;
+				animation->SetRelativeRotation(rotation, false);
+			}
+		}
+		Actions.Move.ExecuteIfBound();
+	}
 }
 
 void ASPPawnCPP::StopMove()
@@ -1904,6 +1968,9 @@ void ASPPawnCPP::StopMove()
 			if (States.MOVE_RIGHT) States.MOVE_RIGHT = false;
 			Actions.StopMove.ExecuteIfBound();
 		}
+	}
+	else {
+		Actions.StopMove.ExecuteIfBound();
 	}
 }
 
@@ -1918,13 +1985,38 @@ void ASPPawnCPP::ResetActions(float delay_delta)
 	}
 }
 
-void ASPPawnCPP::CallDelayAction()
+bool ASPPawnCPP::CallDelayAction_Validate() {
+	return true;
+}
+
+void ASPPawnCPP::CallDelayAction_Implementation()
 {	
 	if (HasAuthority()) {
 		if (CanDelayAction()) {
 			Actions.DelayAction.ExecuteIfBound();
 		}
 	}
+	else {
+		Actions.DelayAction.ExecuteIfBound();
+	}
+}
+
+bool ASPPawnCPP::CallTouchGround_Validate() {
+	return true;
+}
+
+void ASPPawnCPP::CallTouchGround_Implementation()
+{
+	Actions.TouchGround.ExecuteIfBound();
+}
+
+bool ASPPawnCPP::CallLeaveGround_Validate() {
+	return true;
+}
+
+void ASPPawnCPP::CallLeaveGround_Implementation()
+{
+	Actions.LeaveGround.ExecuteIfBound();
 }
 
 void ASPPawnCPP::EndStun_Implementation()

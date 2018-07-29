@@ -312,7 +312,6 @@ protected:
 	UPROPERTY(ReplicatedUsing = RepNot_UpdateAnimation, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		int ClientAnimation;
 
-
 	FSPKeyStates KeyStates;
 	FSPKeyStates LastKeyStates;
 
@@ -366,6 +365,7 @@ protected:
 
 	void ClearStatesWhileHit();
 
+	void ManageSyncFrames(float DeltaTime);
 
 public:
 
@@ -585,8 +585,14 @@ public:
 		//Must be called everytime we change anything here
 		void ResetActions(float delay_delta);
 
-	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+	UFUNCTION(NetMulticast, reliable, WithValidation, Category = SuperFighter)
 		void CallDelayAction();
+
+	UFUNCTION(NetMulticast, reliable, WithValidation, Category = SuperFighter)
+		void CallTouchGround();
+
+	UFUNCTION(NetMulticast, reliable, WithValidation, Category = SuperFighter)
+		void CallLeaveGround();
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
 		void GetHit(float hitstun, float damage, FVector knockback);
@@ -612,6 +618,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		float CurrentDefence();
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		//For Client we mainly use ClientStates because we Call events based on comparing States to Client states
+		//Then in those Evenets we want to check most current states for server those are States
+		//And for client those are ClientStates and after we call the events we finaly do states=clientstates
+		FSPPawnStates CurrentStates() { if (HasAuthority()) return States; return ClientStates; };
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 	bool IsStun();
