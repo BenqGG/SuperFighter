@@ -221,6 +221,24 @@ struct FSPPawnStates {
 		bool SPOT_DODGE = false;
 };
 
+//Beacuse server sometimes fall to send right dash info (side_dash/down_dash... etc) we need to store that info localy for client
+USTRUCT(BlueprintType)
+struct FSPClientDash {
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		bool SIDE_DASH = false;
+
+		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		bool UP_DASH = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		bool DOWN_DASH = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		bool SPOT_DODGE = false;
+};
+
 USTRUCT(BlueprintType)
 struct FSPWorkData {
 
@@ -230,6 +248,7 @@ struct FSPWorkData {
 		FTimerHandle LightAttackTimer;
 		FTimerHandle StrongAttackTimer;
 		FTimerHandle DashTimer;
+		FTimerHandle ClientTimer;
 
 		FVector PossitionError;
 		float HitStun = 0.0f;
@@ -311,6 +330,8 @@ protected:
 		int ClientInjuries;
 	UPROPERTY(ReplicatedUsing = RepNot_UpdateAnimation, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		int ClientAnimation;
+	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FSPClientDash ClientDash;
 
 	FSPKeyStates KeyStates;
 	FSPKeyStates LastKeyStates;
@@ -541,14 +562,14 @@ public:
 	UFUNCTION(Server, unreliable, WithValidation, BlueprintCallable, Category = SuperFighter)
 		void Server_MoveRight();
 
-	UFUNCTION(Server, unreliable, WithValidation, BlueprintCallable, Category = SuperFighter)
+	UFUNCTION(Server, reliable, WithValidation, BlueprintCallable, Category = SuperFighter)
 		void Server_StopMove();
 
-	UFUNCTION(Server, unreliable, WithValidation)
+	UFUNCTION(Server, reliable, WithValidation)
 		//Server Will Only detect the jump that clients asks for
 		void Server_Jump();
 
-	UFUNCTION(Server, unreliable, WithValidation)
+	UFUNCTION(Server, reliable, WithValidation)
 		//Server Will Only detect the jump that clients asks for
 		void Server_StopJump();
 
@@ -594,6 +615,18 @@ public:
 	UFUNCTION(NetMulticast, reliable, WithValidation, Category = SuperFighter)
 		void CallLeaveGround();
 
+	UFUNCTION(NetMulticast, reliable, WithValidation, Category = SuperFighter)
+		void Client_Dash(FVector2D n_Position, int index /*0 - side dash, 1 - up dash, 2 - down dash, 3 - spot dodge*/);
+
+	UFUNCTION(NetMulticast, reliable, WithValidation, Category = SuperFighter)
+		void Client_Move(FVector2D n_Position, int index /*0 - right, 1 - left*/);
+
+	UFUNCTION(NetMulticast, reliable, WithValidation, Category = SuperFighter)
+		void Client_StopMove(FVector2D n_Position);
+
+	UFUNCTION(NetMulticast, reliable, WithValidation, Category = SuperFighter)
+		void Client_Jump(FVector2D n_Position, int index/*0 - jump, 1 - right wall, 2 -left wall*/);
+
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
 		void GetHit(float hitstun, float damage, FVector knockback);
 
@@ -619,11 +652,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		float CurrentDefence();
 
+	FVector2D GetSendPosition();
+
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		//For Client we mainly use ClientStates because we Call events based on comparing States to Client states
 		//Then in those Evenets we want to check most current states for server those are States
 		//And for client those are ClientStates and after we call the events we finaly do states=clientstates
-		FSPPawnStates CurrentStates() { if (HasAuthority()) return States; return ClientStates; };
+		FSPPawnStates CurrentStates() { if (true) return States; return ClientStates; };
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 	bool IsStun();

@@ -112,8 +112,8 @@ void ASPPawnCPP::Tick(float DeltaTime)
 	
 	if (HasAuthority()) {
 		ClientPosition = GetActorLocation();
-		Client_Forces = Forces;
-		ClientStates = States;
+		//Client_Forces = Forces;
+		//ClientStates = States;
 		ClientAirJumped = WorkData.AirJumped;
 		ClientInjuries = WorkData.Injuries;
 		ClientCurrentDefence = WorkData.CurrentDefence;
@@ -146,8 +146,9 @@ void ASPPawnCPP::Tick(float DeltaTime)
 		}
 		CheckKeyStates();
 		if (Forces.X == 0.0f && Forces.Y == 0.0f) {
-			if (!GetActorLocation().Equals(ClientPosition, 0.0f))
+			if (!GetActorLocation().Equals(ClientPosition, 0.0f)) {
 				SetActorLocation(ClientPosition, false);
+			}	
 		}
 
 		//FixPossitionError();
@@ -228,11 +229,7 @@ void ASPPawnCPP::Local_Move(float AxisX)
 
 void ASPPawnCPP::RepNot_UpdatePosition()
 {
-	
-	//FVector current_location = GetActorLocation();
-	//WorkData.PossitionError.X = ClientPosition.X - current_location.X;
-	//WorkData.PossitionError.Z = ClientPosition.Z - current_location.Z;
-	if (!HasAuthority()) {
+	if (!HasAuthority() || !States.DASH) {
 		SetActorLocation(ClientPosition);
 	}
 }
@@ -257,7 +254,8 @@ void ASPPawnCPP::RepNot_UpdateClientForces()
 
 void ASPPawnCPP::RepNot_UpdateStates()
 {
-	if (!HasAuthority()) {
+	if (/*!HasAuthority() && !States.DASH*/false) {
+		bool ReDoDash = false;
 		if (ClientStates.MOVE_LEFT && !States.MOVE_LEFT) {
 			Move(false);
 		}
@@ -278,15 +276,6 @@ void ASPPawnCPP::RepNot_UpdateStates()
 			StopJump();
 		}*/
 
-		if (ClientStates.DASH && !States.DASH){
-				SetUpDash();
-		}
-		
-		/*DO we need to check for this?
-		if (!ClientStates.DASH && States.DASH) {
-			StopDash();
-		}*/
-
 		if (ClientStates.DEFENCE && !States.DEFENCE) {
 			SetUpDefence();
 		}
@@ -296,6 +285,10 @@ void ASPPawnCPP::RepNot_UpdateStates()
 		}
 
 		States = ClientStates;
+
+		if (ReDoDash) {
+			States.DASH = false;
+		}
 	}
 }
 
@@ -606,18 +599,21 @@ void ASPPawnCPP::Jump()
 					GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
 					GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, Attributes.JumpTime, false);
 					Actions.Jump.ExecuteIfBound();
+					Client_Jump(GetSendPosition(), 0);
 				}
 				else if (GroundNextToFeet(true)) {
 					if (!States.JUMP_RIGHT_WALL) States.JUMP_RIGHT_WALL = true;
 					GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
 					GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, Attributes.JumpTime, false);
 					Actions.Jump.ExecuteIfBound();
+					Client_Jump(GetSendPosition(), 1);
 				}
 				else if (GroundNextToFeet(false)) {
 					if(!States.JUMP_LEFT_WALL) States.JUMP_LEFT_WALL = true;
 					GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
 					GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, Attributes.JumpTime, false);
 					Actions.Jump.ExecuteIfBound();
+					Client_Jump(GetSendPosition(), 2);
 				}
 				else if (WorkData.AirJumped < Attributes.AirJumpAmount) {
 					WorkData.AirJumped++;
@@ -626,27 +622,28 @@ void ASPPawnCPP::Jump()
 						GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
 						GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, Attributes.JumpTime, false);
 						Actions.Jump.ExecuteIfBound();
+						Client_Jump(GetSendPosition(), 1);
 					}
 					else if (States.MOVE_RIGHT) {
 						if(!States.JUMP_LEFT_WALL) States.JUMP_LEFT_WALL = true;
 						GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
 						GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, Attributes.JumpTime, false);
 						Actions.Jump.ExecuteIfBound();
+						Client_Jump(GetSendPosition(), 2);
 					}
 					else {
 						if(!States.JUMP) States.JUMP = true;
 						GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
 						GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, Attributes.JumpTime, false);
 						Actions.Jump.ExecuteIfBound();
+						Client_Jump(GetSendPosition(), 0);
 					}
 			}
 		}
 	}
 	else {
-		float PingDelta = GetWorld()->GetFirstPlayerController()->PlayerState->Ping * 2.0f;
-		PingDelta /= 1000.0f;
 		GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
-		GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, Attributes.JumpTime - PingDelta, false);
+		GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, Attributes.JumpTime, false);
 		Actions.Jump.ExecuteIfBound();
 	}
 }
@@ -681,14 +678,14 @@ void ASPPawnCPP::StopJump()
 		}
 	}
 	else {
-		States.JUMP = false;
-		States.JUMP_LEFT_WALL = false;
-		States.JUMP_RIGHT_WALL = false;
-		ClientStates.JUMP = false;
-		ClientStates.JUMP_LEFT_WALL = false;
-		ClientStates.JUMP_RIGHT_WALL = false;
-		GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
-		Actions.StopJump.ExecuteIfBound();
+		GetWorldTimerManager().ClearTimer(WorkData.ClientTimer);
+		if (States.JUMP || States.JUMP_LEFT_WALL || States.JUMP_RIGHT_WALL) {
+			States.JUMP = false;
+			States.JUMP_LEFT_WALL = false;
+			States.JUMP_RIGHT_WALL = false;
+			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+			Actions.StopJump.ExecuteIfBound();
+		}
 	}
 }
 
@@ -953,6 +950,11 @@ bool ASPPawnCPP::Server_DownLightAttack_Validate()
 void ASPPawnCPP::Defence(int index)
 {
 	if (HasAuthority()) {
+		FVector CurrentPosition = GetActorLocation();
+		FVector2D SendPosition;
+		SendPosition.X = CurrentPosition.X;
+		SendPosition.Y = CurrentPosition.Z;
+
 		if (index == 0) {
 			FVector2D CurrentAxis = AxisPosition();
 			FVector2D AbsCurrentAxis;
@@ -971,11 +973,6 @@ void ASPPawnCPP::Defence(int index)
 					
 					States.SIDE_DASH = true;
 					SetUpDash();
-
-					if (States.ON_GROUND)
-						Actions.Dash.ExecuteIfBound();
-					else
-						Actions.AirDash.ExecuteIfBound();
 				}
 			}
 			else {
@@ -984,11 +981,6 @@ void ASPPawnCPP::Defence(int index)
 					
 						States.UP_DASH = true;
 						SetUpDash();
-
-						if (States.ON_GROUND)
-							Actions.Dash.ExecuteIfBound();
-						else
-							Actions.AirDash.ExecuteIfBound();
 					}
 				}
 				else {
@@ -997,16 +989,12 @@ void ASPPawnCPP::Defence(int index)
 							
 							States.SPOT_DODGE = true;
 							SetUpDash();
-
-							Actions.SpotDodge.ExecuteIfBound();
 						}
 							
 						else {
 							
 							States.DOWN_DASH = true;
 							SetUpDash();
-
-							Actions.AirDash.ExecuteIfBound();
 						}
 					}
 				}
@@ -1020,28 +1008,29 @@ void ASPPawnCPP::Defence(int index)
 		}
 		else if (index == 2 || index == 3) {
 			if (CanDash()) {
-				if (index == 2) States.SIDE_DASH = true;
-				else States.UP_DASH = true;
+				if (index == 2) {
+					States.SIDE_DASH = true;
+					Client_Dash(SendPosition, 0);
+				}
+				else {
+					States.UP_DASH = true;
+					Client_Dash(SendPosition, 1);
+				}
 
 				SetUpDash();
-
-				if(States.ON_GROUND)
-					Actions.Dash.ExecuteIfBound();
-				else
-					Actions.AirDash.ExecuteIfBound();
 			}
 		}
 		else if (index == 4) {
 			if (CanDash()) {
 				if (States.ON_GROUND) {
 					States.SPOT_DODGE = true;
+					Client_Dash(SendPosition, 3);
 					SetUpDash();
-					Actions.SpotDodge.ExecuteIfBound();
 				}
 				else {
 					States.DOWN_DASH = true;
+					Client_Dash(SendPosition, 2);
 					SetUpDash();
-					Actions.AirDash.ExecuteIfBound();
 				}
 					
 			}
@@ -1056,6 +1045,7 @@ void ASPPawnCPP::Defence(int index)
 		if ((CurrentAxis.X == 0.0f && CurrentAxis.Y == 0.0f) && !States.MOVE_RIGHT && !States.MOVE_LEFT) {
 			if (CanDefence()) {
 				Server_Defence();
+				
 			}
 		}
 		else if (AbsCurrentAxis.X >= AbsCurrentAxis.Y && CanDash()) {
@@ -1418,7 +1408,6 @@ void ASPPawnCPP::ReplenishDefence()
 
 void ASPPawnCPP::SetUpDash()
 {
-	if (HasAuthority()) {
 		
 		if (!States.DASH) States.DASH = true;
 
@@ -1437,50 +1426,41 @@ void ASPPawnCPP::SetUpDash()
 			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
 		}
 
-		if (States.CAN_MOVE)				States.CAN_MOVE = false;
-		if (States.CAN_JUMP)				States.CAN_JUMP = false;
-		if (States.CAN_LIGHT_ATTACK)		States.CAN_LIGHT_ATTACK = false;
-		if (States.CAN_STRONG_ATTACK)		States.CAN_STRONG_ATTACK = false;
-		if (States.CAN_DEFENCE)				States.CAN_DEFENCE = false;
-		if (States.CAN_DASH)				States.CAN_DASH = false;
-
+		if (HasAuthority()) {
+			if (States.CAN_MOVE)				States.CAN_MOVE = false;
+			if (States.CAN_JUMP)				States.CAN_JUMP = false;
+			if (States.CAN_LIGHT_ATTACK)		States.CAN_LIGHT_ATTACK = false;
+			if (States.CAN_STRONG_ATTACK)		States.CAN_STRONG_ATTACK = false;
+			if (States.CAN_DEFENCE)				States.CAN_DEFENCE = false;
+			if (States.CAN_DASH)				States.CAN_DASH = false;
+		}
+		
 		if (States.SPOT_DODGE) {
 			GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, Attributes.SpotDodgeTime, false);
+			Actions.SpotDodge.ExecuteIfBound();
 		}
 		else {
 			GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, Attributes.DashTime, false);
+			if (HasAuthority()) {
+				if(States.ON_GROUND)
+					Actions.Dash.ExecuteIfBound();
+				else
+					Actions.AirDash.ExecuteIfBound();
+			}
+			else {
+				if (GroundUnderFeet())
+					Actions.Dash.ExecuteIfBound();
+				else
+					Actions.AirDash.ExecuteIfBound();
+			}
 		}
 
 		DodgeBlink(true);
-	}
-	else {
-		float PingDelta = GetWorld()->GetFirstPlayerController()->PlayerState->Ping * 2.0f;
-		PingDelta /= 1000.0f;
-
-		if (States.SPOT_DODGE) {
-			GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, Attributes.SpotDodgeTime - PingDelta, false);
-		}
-		else {
-			GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, Attributes.DashTime - PingDelta, false);			}
-
-		DodgeBlink(true);
-		//We check here client states because these are from server and they call SetUpDash before we do States = ClientStates
-		if (ClientStates.SPOT_DODGE) {
-			Actions.SpotDodge.ExecuteIfBound();
-		}
-		else if (ClientStates.ON_GROUND) {
-			Actions.Dash.ExecuteIfBound();
-		}
-		else {
-			Actions.AirDash.ExecuteIfBound();
-		}
-		GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
-	}
 }
 
 void ASPPawnCPP::StopDash()
 {
-	if (HasAuthority()) {
+	
 		if (States.DASH) States.DASH = false;
 
 		if (!States.CAN_MOVE)				States.CAN_MOVE = true;
@@ -1492,23 +1472,12 @@ void ASPPawnCPP::StopDash()
 		if (States.CAN_DASH) States.CAN_DASH = false;
 		
 		GetWorldTimerManager().ClearTimer(WorkData.DashTimer);
+		if(HasAuthority())
 		GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::DashColdown, 1.0f, false);
 
 		DodgeBlink(false);
 		StopDashForces();
 		DashEnd();
-	}
-	else {
-		
-		if (States.DASH) {
-			States.DASH = false;
-			ClientStates.DASH = false;
-			GetWorldTimerManager().ClearTimer(WorkData.DashTimer);
-			DodgeBlink(false);
-			StopDashForces();
-			DashEnd();
-		}
-	}
 }
 
 void ASPPawnCPP::DashColdown()
@@ -1801,6 +1770,11 @@ void ASPPawnCPP::CheckKeyStates()
 			WorkData.CanJumpAgain = true;
 			if (CanStopJump())
 			Server_StopJump();
+
+			float PingDelta = GetWorld()->GetFirstPlayerController()->PlayerState->Ping * 2.0f;
+			PingDelta /= 1000.0f;
+			GetWorldTimerManager().ClearTimer(WorkData.ClientTimer);
+			GetWorldTimerManager().SetTimer(WorkData.ClientTimer, this, &ASPPawnCPP::StopJump, PingDelta, false);
 		}
 		else if (!LastKeyStates.JUMP_KEY && (States.JUMP || States.JUMP_LEFT_WALL || States.JUMP_RIGHT_WALL) ) {
 			if (CanStopJump())
@@ -1817,22 +1791,33 @@ void ASPPawnCPP::CheckKeyStates()
 		else if (LastKeyStates.LEFT_KEY && !KeyStates.LEFT_KEY) {
 			if (States.MOVE_LEFT && CanStopMove()) {
 				Server_StopMove();
+				
+				float PingDelta = GetWorld()->GetFirstPlayerController()->PlayerState->Ping * 2.0f;
+				PingDelta /= 1000.0f;
+				GetWorldTimerManager().ClearTimer(WorkData.ClientTimer);
+				GetWorldTimerManager().SetTimer(WorkData.ClientTimer, this, &ASPPawnCPP::StopMove, PingDelta, false);
 			}
 		}
 		else if (!LastKeyStates.LEFT_KEY && States.MOVE_LEFT) {
-			if(CanStopMove())
-			Server_StopMove();
+			if (CanStopMove()) {
+				Server_StopMove();
+			}	
 		}
 		else if (LastKeyStates.RIGHT_KEY && !KeyStates.RIGHT_KEY) {
 			if (States.MOVE_RIGHT && CanStopMove()) {
 				Server_StopMove();
+				float PingDelta = GetWorld()->GetFirstPlayerController()->PlayerState->Ping * 2.0f;
+				PingDelta /= 1000.0f;
+				GetWorldTimerManager().ClearTimer(WorkData.ClientTimer);
+				GetWorldTimerManager().SetTimer(WorkData.ClientTimer, this, &ASPPawnCPP::StopMove, PingDelta, false);
 			}
 		}
 		else if (!LastKeyStates.RIGHT_KEY && States.MOVE_RIGHT) {
-			if (CanStopMove())
-			Server_StopMove();
+			if (CanStopMove()) {
+				Server_StopMove();
+			}
 		}
-		else if (KeyStates.DEFENCE_KEY) {
+		else if (false && KeyStates.DEFENCE_KEY) {
 			if (KeyStates.RIGHT_KEY || KeyStates.LEFT_KEY) {
 				if(CanDash())
 				Server_SideDash();
@@ -1918,6 +1903,11 @@ void ASPPawnCPP::SetAttributes(FSPPawnAttributes new_attributes)
 void ASPPawnCPP::Move(bool right)
 {
 	if (HasAuthority()) {
+		FVector CurrentPosition = GetActorLocation();
+		FVector2D SendPosition;
+		SendPosition.X = CurrentPosition.X;
+		SendPosition.Y = CurrentPosition.Z;
+
 		if (CanMove()) {
 			if (right) {
 				if(States.MOVE_LEFT) States.MOVE_LEFT = false;
@@ -1927,6 +1917,7 @@ void ASPPawnCPP::Move(bool right)
 					WorkData.FacingRight = true;
 					animation->SetRelativeRotation(rotation, false);
 				}
+				Client_Move(SendPosition, 0);
 			}
 			else {
 				if (!States.MOVE_LEFT) States.MOVE_LEFT = true;
@@ -1937,6 +1928,7 @@ void ASPPawnCPP::Move(bool right)
 					animation->SetRelativeRotation(rotation, false);
 
 				}
+				Client_Move(SendPosition, 1);
 			}
 			Actions.Move.ExecuteIfBound();
 		}
@@ -1967,10 +1959,15 @@ void ASPPawnCPP::StopMove()
 			if (States.MOVE_LEFT) States.MOVE_LEFT = false;
 			if (States.MOVE_RIGHT) States.MOVE_RIGHT = false;
 			Actions.StopMove.ExecuteIfBound();
+			Client_StopMove(GetSendPosition());
 		}
 	}
 	else {
-		Actions.StopMove.ExecuteIfBound();
+		if (States.MOVE_LEFT || States.MOVE_RIGHT) {
+			if (States.MOVE_LEFT) States.MOVE_LEFT = false;
+			if (States.MOVE_RIGHT) States.MOVE_RIGHT = false;
+			Actions.StopMove.ExecuteIfBound();
+		}
 	}
 }
 
@@ -1982,6 +1979,41 @@ void ASPPawnCPP::ResetActions(float delay_delta)
 		if (Actions.delay > 0.000f) {
 			GetWorldTimerManager().SetTimer(DelayTimer, this, &ASPPawnCPP::CallDelayAction, Actions.delay, false);
 		}
+	}
+}
+
+bool ASPPawnCPP::Client_Dash_Validate(FVector2D n_Position, int index) {
+	return true;
+}
+
+void ASPPawnCPP::Client_Dash_Implementation(FVector2D n_Position, int index)
+{
+	if (!HasAuthority()) {
+		FVector CurrentPosition;
+		CurrentPosition.X = n_Position.X;
+		CurrentPosition.Z = n_Position.Y;
+		CurrentPosition.Y = 0.0f;
+		SetActorLocation(CurrentPosition, false);
+		
+		switch (index) {
+		case 0:
+			States.SIDE_DASH = true;
+			break;
+			
+		case 1:
+			States.UP_DASH = true;
+			break;
+
+		case 2:
+			States.DOWN_DASH = true;
+			break;
+
+		case 3:
+			States.SPOT_DODGE = true;
+			break;
+		}
+
+		SetUpDash();
 	}
 }
 
@@ -2084,6 +2116,16 @@ float ASPPawnCPP::StrongAttackMeter()
 float ASPPawnCPP::CurrentDefence()
 {
 	return WorkData.CurrentDefence;
+}
+
+FVector2D ASPPawnCPP::GetSendPosition()
+{
+	FVector CurrentPosition = GetActorLocation();
+	FVector2D SendPosition;
+	SendPosition.X = CurrentPosition.X;
+	SendPosition.Y = CurrentPosition.Z;
+
+	return SendPosition;
 }
 
 bool ASPPawnCPP::IsStun()
@@ -2244,4 +2286,88 @@ bool ASPPawnCPP::CanDash()
 	else {
 		return true;
 	}
+}
+
+void ASPPawnCPP::Client_Move_Implementation(FVector2D n_Position, int index)
+{
+	if (!HasAuthority()) {
+		FVector CurrentPosition;
+		CurrentPosition.X = n_Position.X;
+		CurrentPosition.Z = n_Position.Y;
+		CurrentPosition.Y = 0.0f;
+		SetActorLocation(CurrentPosition, false);
+
+		switch (index) {
+		case 0:
+			States.MOVE_LEFT = false;
+			States.MOVE_RIGHT = true;
+			Move(true);
+			break;
+
+		case 1:
+			States.MOVE_RIGHT = false;
+			States.MOVE_LEFT = true;
+			Move(false);
+			break;
+		}
+
+	}
+}
+
+bool ASPPawnCPP::Client_Move_Validate(FVector2D n_Position, int index)
+{
+	return true;
+}
+
+bool ASPPawnCPP::Client_StopMove_Validate(FVector2D n_Position) {
+	return true;
+}
+
+void ASPPawnCPP::Client_StopMove_Implementation(FVector2D n_Position)
+{
+	if (!HasAuthority()) {
+		if (States.MOVE_LEFT || States.MOVE_RIGHT) {
+
+			FVector CurrentPosition;
+			CurrentPosition.X = n_Position.X;
+			CurrentPosition.Z = n_Position.Y;
+			CurrentPosition.Y = 0.0f;
+			SetActorLocation(CurrentPosition, false);
+		
+			GetWorldTimerManager().ClearTimer(WorkData.ClientTimer);
+			StopMove();
+		}
+	}
+}
+
+void ASPPawnCPP::Client_Jump_Implementation(FVector2D n_Position, int index)
+{
+	if (!HasAuthority()) {
+		FVector CurrentPosition;
+		CurrentPosition.X = n_Position.X;
+		CurrentPosition.Z = n_Position.Y;
+		CurrentPosition.Y = 0.0f;
+		SetActorLocation(CurrentPosition, false);
+
+		switch (index) {
+		case 0:
+			States.JUMP = true;
+			break;
+
+		case 1:
+			States.JUMP_RIGHT_WALL = true;
+			break;
+
+		case 2:
+			States.JUMP_LEFT_WALL = true;
+			break;
+		}
+
+		Jump();
+	}
+}
+
+bool ASPPawnCPP::Client_Jump_Validate(FVector2D n_Position, int index)
+{
+	return true;
 }
