@@ -502,7 +502,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void ReleaseDefence();
 
-	UFUNCTION(Server, unreliable, WithValidation)
+	UFUNCTION(Server, reliable, WithValidation)
 		//Server Will Only detect the jump that clients asks for
 		void Server_ReleaseDefence();
 
@@ -609,10 +609,10 @@ public:
 	UFUNCTION(NetMulticast, reliable, WithValidation, Category = SuperFighter)
 		void CallDelayAction();
 
-	UFUNCTION(NetMulticast, reliable, WithValidation, Category = SuperFighter)
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void CallTouchGround();
 
-	UFUNCTION(NetMulticast, reliable, WithValidation, Category = SuperFighter)
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void CallLeaveGround();
 
 	UFUNCTION(NetMulticast, reliable, WithValidation, Category = SuperFighter)
@@ -626,6 +626,27 @@ public:
 
 	UFUNCTION(NetMulticast, reliable, WithValidation, Category = SuperFighter)
 		void Client_Jump(FVector2D n_Position, int index/*0 - jump, 1 - right wall, 2 -left wall*/);
+
+	UFUNCTION(NetMulticast, reliable, WithValidation, Category = SuperFighter)
+		void Client_StopJump(FVector2D n_Position);
+
+	UFUNCTION(NetMulticast, reliable, WithValidation, Category = SuperFighter)
+		void Client_Defence(FVector2D n_Position);
+
+	UFUNCTION(NetMulticast, reliable, WithValidation, Category = SuperFighter)
+		void Client_StopDefence(FVector2D n_Position);
+
+	UFUNCTION(NetMulticast, reliable, WithValidation, Category = SuperFighter)
+		void Client_LightAttack(FVector2D n_Position, int index /*0 - normal, 1 - up, 2 - down, 3 - normal air, 4 - up airm 5 - down air*/ );
+		
+	UFUNCTION(NetMulticast, reliable, WithValidation, Category = SuperFighter)
+		void Client_StrongAttack(FVector2D n_Position, int index /*0 - normal, 1 - side, 2 - up, 3 - down, 4 - air normal, 5 - air side, 6 - air up, 7 - air down */);
+
+	UFUNCTION(NetMulticast, reliable, WithValidation, Category = SuperFighter)
+		void Client_StopStrongAttack(FVector2D n_Position, int StrongAttackMeter);
+
+	UFUNCTION(NetMulticast, reliable, WithValidation, Category = SuperFighter)
+		void Client_CallDelayAction(FVector2D n_Position);
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
 		void GetHit(float hitstun, float damage, FVector knockback);
