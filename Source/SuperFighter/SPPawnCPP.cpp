@@ -23,7 +23,7 @@ ASPPawnCPP::ASPPawnCPP()
 	animation->SetRelativeLocation(FVector(0.0f, 0.0f, 0.0f));
 
 	StaticAttributes.MovementScale = 10.0f;
-	StaticAttributes.AirMovementScale = 1.0f;
+	StaticAttributes.AirMovementScale = 4.0f;
 	StaticAttributes.WallJumpXModifier = 2.0f;
 	StaticAttributes.WallJumpYModifier = 1.5f;
 
@@ -1563,11 +1563,7 @@ void ASPPawnCPP::CalculateMovement(float DeltaTime)
 				}
 			}
 			else {
-				CalculatedMovementSpeed = Attributes.MoveSpeed * StaticAttributes.AirMovementScale;
-				if (States.JUMP)
-				{
-					CalculatedMovementSpeed *= 4.0f;
-				}
+					CalculatedMovementSpeed = Attributes.MoveSpeed * StaticAttributes.AirMovementScale;
 				if (Forces.X < CalculatedMovementSpeed * 2 && Forces.X > -CalculatedMovementSpeed) {
 					Forces.X = -CalculatedMovementSpeed;
 				}
@@ -1581,11 +1577,7 @@ void ASPPawnCPP::CalculateMovement(float DeltaTime)
 				}
 			}
 			else {
-				CalculatedMovementSpeed = Attributes.MoveSpeed * StaticAttributes.AirMovementScale;
-				if (States.JUMP)
-				{
-					CalculatedMovementSpeed *= 4.0f;
-				}
+					CalculatedMovementSpeed = Attributes.MoveSpeed * StaticAttributes.AirMovementScale;
 				if (Forces.X > -CalculatedMovementSpeed * 2 && Forces.X < CalculatedMovementSpeed) {
 					Forces.X = CalculatedMovementSpeed;
 				}
@@ -1775,7 +1767,15 @@ void ASPPawnCPP::CheckKeyStates()
 				Server_Jump();
 				WorkData.CanJumpAgain = false;
 			}
-			
+			if (KeyStates.RIGHT_KEY) {
+				if (!States.MOVE_RIGHT && CanMove()) {
+					Server_MoveRight();
+				}
+			}
+			else if (KeyStates.LEFT_KEY) {
+				if (!States.MOVE_LEFT && CanMove())
+					Server_MoveLeft();
+			}
 		}
 		else if (KeyStates.LATTACK_KEY)
 		{
@@ -1811,8 +1811,10 @@ void ASPPawnCPP::CheckKeyStates()
 			}
 		}
 		else if (KeyStates.RIGHT_KEY) {
-			if(!States.MOVE_RIGHT && CanMove())
-			Server_MoveRight();
+			if (!States.MOVE_RIGHT && CanMove()) {
+				Server_MoveRight();
+			}
+			
 		}
 		else if (KeyStates.LEFT_KEY) {
 			if (!States.MOVE_LEFT && CanMove())
@@ -2050,7 +2052,7 @@ bool ASPPawnCPP::IsStun()
 bool ASPPawnCPP::CanMove() {
 	if (HasAuthority()) {
 		if (!IsStun() && !States.BUSY && States.CAN_MOVE && !States.DASH && !States.DEFENCE 
-			&& !States.LIGHT_ATTACK && !States.STRONG_ATTACK) 
+			&& !States.LIGHT_ATTACK && !States.STRONG_ATTACK)
 			return true;
 		else 
 			return false;
