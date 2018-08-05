@@ -40,6 +40,26 @@ ASPPawnCPP::ASPPawnCPP()
 	WorkData.AddingForce = false;
 	WorkData.AddForce = FVector(0.0f, 0.0, 0.0f);
 	WorkData.DefenceDelta = 0.0f;
+	WorkData.JumpTimer = false;
+	WorkData.JumpTimerDelta = 0.0f;
+	WorkData.LightAttackTimer = false;
+	WorkData.LightAttackTimerDelta = 0.0f;
+	WorkData.LightAttackTimerGoal = 0.0f;
+	WorkData.StrongAttackTimer = false;
+	WorkData.StrongAttackTimerDelta = 0.0f;
+	WorkData.DashTimer = false;
+	WorkData.DashTimerDelta = 0.0f;
+	WorkData.DashTimerGoal = 0.0f;
+	WorkData.DashTimerStage = 0;
+
+	WorkData.ClientTimer = false;
+	WorkData.ClientTimerDelta = 0.0f;
+	WorkData.ClientTimerGoal = 0.0f;
+	WorkData.ClientTimerStage = 0;
+	
+	WorkData.DelayTimer = false;
+	WorkData.DelayTimerDelta = 0.0f;
+	WorkData.DelayTimerGoal = 0.0f;
 
 	ClientCurrentDefence = 0.0f;
 	ClientInjuries = 0.0f;
@@ -107,10 +127,9 @@ void ASPPawnCPP::Tick(float DeltaTime)
 		Friction(DeltaTime);
 		Gravity(DeltaTime);
 		CalculateMovement(DeltaTime);
-		ManageDefence(DeltaTime);
-		if (IsStun()) {
-			ManageStunState(DeltaTime);
-		}
+		UpdateTimers(DeltaTime);
+
+
 		if (States.DEFENCE) {
 			DrawDefence();
 		}
@@ -125,10 +144,9 @@ void ASPPawnCPP::Tick(float DeltaTime)
 		Friction(DeltaTime);
 		Gravity(DeltaTime);
 		CalculateMovement(DeltaTime);
-		ManageDefence(DeltaTime);
-		if (IsStun()) {
-			ManageStunState(DeltaTime);
-		}
+		UpdateTimers(DeltaTime);
+
+
 		if (States.DEFENCE) {
 			DrawDefence();
 		}
@@ -346,6 +364,96 @@ void ASPPawnCPP::ManageDefence(float DeltaTime)
 	}
 }
 
+void ASPPawnCPP::ManageJump(float DeltaTime)
+{
+	WorkData.JumpTimerDelta += DeltaTime;
+	if (WorkData.JumpTimerDelta >= Attributes.JumpTime) {
+		WorkData.JumpTimerDelta = 0.0f;
+		WorkData.JumpTimer = false;
+		StopJump();
+	}
+}
+
+void ASPPawnCPP::ManageLightAttack(float DeltaTime)
+{
+	WorkData.LightAttackTimerDelta += DeltaTime;
+	if (WorkData.LightAttackTimerDelta >= WorkData.LightAttackTimerGoal) {
+		WorkData.LightAttackTimerDelta = 0.0f;
+		WorkData.LightAttackTimerGoal = 0.0f;
+		WorkData.LightAttackTimer = false;
+
+		EndLightAttack();
+	}
+}
+
+void ASPPawnCPP::ManageStrongAttack(float DeltaTime)
+{
+	WorkData.StrongAttackTimerDelta += DeltaTime;
+	while(WorkData.StrongAttackTimerDelta >= 0.05f) {
+		WorkData.StrongAttackTimerDelta -= 0.05f;
+		UpgradeStrongAttackMeter();
+	}
+}
+
+void ASPPawnCPP::ManageDash(float DeltaTime)
+{
+	WorkData.DashTimerDelta += DeltaTime;
+	if (WorkData.DashTimerStage == 0) {
+		if (WorkData.DashTimerDelta >= WorkData.DashTimerGoal) {
+			WorkData.DashTimerDelta = 0.0f;
+			WorkData.DashTimerGoal = 0.0f;
+			WorkData.DashTimerStage = 0;
+			WorkData.DashTimer = false;
+
+			StopDash();
+		}
+	}
+	else {
+		if (WorkData.DashTimerDelta >= WorkData.DashTimerGoal) {
+			WorkData.DashTimerDelta = 0.0f;
+			WorkData.DashTimerGoal = 0.0f;
+			WorkData.DashTimerStage = 0;
+			WorkData.DashTimer = false;
+
+			DashColdown();
+		}
+	}
+}
+
+void ASPPawnCPP::ManageClient(float DeltaTime)
+{
+	if (!HasAuthority()) {
+		WorkData.ClientTimerDelta += DeltaTime; 
+		if (WorkData.ClientTimerDelta >= WorkData.ClientTimerGoal) {
+			WorkData.ClientTimer = false;
+			WorkData.ClientTimerDelta = 0.0f;
+			WorkData.ClientTimerGoal = 0.0f;
+
+			if (WorkData.ClientTimerStage == 0) {
+				ReleaseDefence();
+			}
+			else if (WorkData.ClientTimerStage == 1) {
+				StopJump();
+			}
+			else if (WorkData.ClientTimerStage == 2) {
+				StopMove();
+			}
+		}
+	}
+}
+
+void ASPPawnCPP::ManageDelay(float DeltaTime)
+{
+	if (HasAuthority()) {
+		WorkData.DelayTimerDelta += DeltaTime;
+		if (WorkData.DelayTimerDelta >= WorkData.DelayTimerGoal) {
+			WorkData.DelayTimer = false;
+			WorkData.DelayTimerDelta = 0.0f;
+			CallDelayAction();
+		}
+	}
+}
+
 void ASPPawnCPP::DodgeBlink_Implementation(bool start)
 {
 }
@@ -502,22 +610,28 @@ void ASPPawnCPP::Jump()
 			if (CanJump()) {
 				if (GroundUnderFeet()) {
 					if(!States.JUMP) States.JUMP = true;
-					GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
-					GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, Attributes.JumpTime, false);
+
+					WorkData.JumpTimer = true;
+					WorkData.JumpTimerDelta = 0.0f;
+					
 					Actions.Jump.ExecuteIfBound();
 					Client_Jump(GetSendPosition(), 0);
 				}
 				else if (GroundNextToFeet(true)) {
 					if (!States.JUMP_RIGHT_WALL) States.JUMP_RIGHT_WALL = true;
-					GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
-					GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, Attributes.JumpTime, false);
+					
+					WorkData.JumpTimer = true;
+					WorkData.JumpTimerDelta = 0.0f;
+
 					Actions.Jump.ExecuteIfBound();
 					Client_Jump(GetSendPosition(), 1);
 				}
 				else if (GroundNextToFeet(false)) {
 					if(!States.JUMP_LEFT_WALL) States.JUMP_LEFT_WALL = true;
-					GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
-					GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, Attributes.JumpTime, false);
+					
+					WorkData.JumpTimer = true;
+					WorkData.JumpTimerDelta = 0.0f;
+
 					Actions.Jump.ExecuteIfBound();
 					Client_Jump(GetSendPosition(), 2);
 				}
@@ -525,22 +639,28 @@ void ASPPawnCPP::Jump()
 					WorkData.AirJumped++;
 					if (States.MOVE_LEFT) {
 						if(!States.JUMP_RIGHT_WALL) States.JUMP_RIGHT_WALL = true;
-						GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
-						GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, Attributes.JumpTime, false);
+						
+						WorkData.JumpTimer = true;
+						WorkData.JumpTimerDelta = 0.0f;
+
 						Actions.Jump.ExecuteIfBound();
 						Client_Jump(GetSendPosition(), 1);
 					}
 					else if (States.MOVE_RIGHT) {
 						if(!States.JUMP_LEFT_WALL) States.JUMP_LEFT_WALL = true;
-						GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
-						GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, Attributes.JumpTime, false);
+						
+						WorkData.JumpTimer = true;
+						WorkData.JumpTimerDelta = 0.0f;
+
 						Actions.Jump.ExecuteIfBound();
 						Client_Jump(GetSendPosition(), 2);
 					}
 					else {
 						if(!States.JUMP) States.JUMP = true;
-						GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
-						GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, Attributes.JumpTime, false);
+						
+						WorkData.JumpTimer = true;
+						WorkData.JumpTimerDelta = 0.0f;
+
 						Actions.Jump.ExecuteIfBound();
 						Client_Jump(GetSendPosition(), 0);
 					}
@@ -548,8 +668,9 @@ void ASPPawnCPP::Jump()
 		}
 	}
 	else {
-		GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
-		GetWorldTimerManager().SetTimer(WorkData.JumpTimer, this, &ASPPawnCPP::StopJump, Attributes.JumpTime, false);
+		WorkData.JumpTimer = true;
+		WorkData.JumpTimerDelta = 0.0f;
+
 		Actions.Jump.ExecuteIfBound();
 	}
 }
@@ -570,7 +691,7 @@ void ASPPawnCPP::StopJump()
 		{
 
 			if (!HasAuthority()) {
-				GetWorldTimerManager().ClearTimer(WorkData.ClientTimer);
+				WorkData.ClientTimer = false;
 			}
 
 			if (HasAuthority()) {
@@ -590,7 +711,7 @@ void ASPPawnCPP::StopJump()
 				Actions.StopJump.ExecuteIfBound();
 			}
 			
-			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+			WorkData.JumpTimer = false;
 	}
 }
 
@@ -873,7 +994,7 @@ void ASPPawnCPP::ReleaseStrongAttack()
 		if (CanReleaseStrongAttack()) {
 			ClearStrongAttack();
 			Actions.RealeaseStrongAttack.ExecuteIfBound();
-			GetWorldTimerManager().ClearTimer(WorkData.ClientTimer);
+			WorkData.ClientTimer = false;
 		}
 	}
 }
@@ -1055,7 +1176,7 @@ void ASPPawnCPP::ReleaseDefence()
 		if (CanReleaseDefence())
 		{
 			if (!HasAuthority()) {
-				GetWorldTimerManager().ClearTimer(WorkData.ClientTimer);
+				WorkData.ClientTimer = false;
 			}
 			ClearDefence();
 			Actions.ReleaseDefence.ExecuteIfBound();
@@ -1214,25 +1335,25 @@ void ASPPawnCPP::UpgradeStrongAttackMeter()
 void ASPPawnCPP::ClearStatesWhileHit()
 {
 		if(HasAuthority()) {
-			GetWorldTimerManager().ClearTimer(DelayTimer);
+			WorkData.DelayTimer = false;
 		} 
 		if(!HasAuthority()){
-			GetWorldTimerManager().ClearTimer(WorkData.ClientTimer);
+			WorkData.ClientTimer = false;
 		}
 
 		if(States.MOVE_RIGHT)States.MOVE_RIGHT = false;
 		if (States.MOVE_LEFT)States.MOVE_LEFT = false;
 		if (States.JUMP) {
 			States.JUMP = false;
-			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+			WorkData.JumpTimer = false;
 		}
 		if (States.JUMP_LEFT_WALL) {
 			States.JUMP_LEFT_WALL = false;
-			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+			WorkData.JumpTimer = false;
 		}
 		if (States.JUMP_RIGHT_WALL) {
 			States.JUMP_RIGHT_WALL = false;
-			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+			WorkData.JumpTimer = false;
 		}
 		if (States.DEFENCE) {
 			States.DEFENCE = false;
@@ -1242,11 +1363,11 @@ void ASPPawnCPP::ClearStatesWhileHit()
 		}
 		if (States.STRONG_ATTACK) {
 			States.STRONG_ATTACK = false;
-			GetWorldTimerManager().ClearTimer(WorkData.StrongAttackTimer);
+			WorkData.StrongAttackTimer = false;
 		}
 		if (States.LIGHT_ATTACK) {
 			States.LIGHT_ATTACK = false;
-			GetWorldTimerManager().ClearTimer(WorkData.LightAttackTimer);
+			WorkData.LightAttackTimer = false;
 		}
 	
 		if (!States.CAN_MOVE)States.CAN_MOVE = true;
@@ -1256,21 +1377,47 @@ void ASPPawnCPP::ClearStatesWhileHit()
 		if (!States.CAN_DEFENCE)States.CAN_DEFENCE = true;
 }
 
+void ASPPawnCPP::UpdateTimers(float DeltaTime)
+{
+	ManageDefence(DeltaTime);
+	if (IsStun()) {
+		ManageStunState(DeltaTime);
+	}
+	if (WorkData.JumpTimer) {
+		ManageJump(DeltaTime);
+	}
+	if (WorkData.LightAttackTimer) {
+		ManageLightAttack(DeltaTime);
+	}
+	if (WorkData.StrongAttackTimer) {
+		ManageStrongAttack(DeltaTime);
+	}
+	if (WorkData.DashTimer) {
+		ManageDash(DeltaTime);
+	}
+	if (!HasAuthority() && WorkData.ClientTimer) {
+		ManageClient(DeltaTime);
+	}
+	if (HasAuthority() && WorkData.DelayTimer) {
+		ManageDelay(DeltaTime);
+	}
+}
+
 void ASPPawnCPP::SetUpDefence()
 {
 		if (!States.DEFENCE) States.DEFENCE = true;
 
 		if (States.JUMP) {
 			States.JUMP = false;
-			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+			WorkData.JumpTimer = false;
 		}
 		if (States.JUMP_LEFT_WALL) {
 			States.JUMP_LEFT_WALL = false;
-			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+			WorkData.JumpTimer = false;
 		}
 		if (States.JUMP_RIGHT_WALL) {
 			States.JUMP_RIGHT_WALL = false;
-			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+			WorkData.JumpTimer = false;
 		}
 
 		if (States.CAN_MOVE) States.CAN_MOVE = false;
@@ -1335,15 +1482,15 @@ void ASPPawnCPP::SetUpDash()
 		if (States.MOVE_LEFT)States.MOVE_LEFT = false;
 		if (States.JUMP) {
 			States.JUMP = false;
-			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+			WorkData.JumpTimer = false;
 		}
 		if (States.JUMP_LEFT_WALL) {
 			States.JUMP_LEFT_WALL = false;
-			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+			WorkData.JumpTimer = false;
 		}
 		if (States.JUMP_RIGHT_WALL) {
 			States.JUMP_RIGHT_WALL = false;
-			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+			WorkData.JumpTimer = false;
 		}
 
 		if (States.CAN_MOVE)				States.CAN_MOVE = false;
@@ -1355,11 +1502,18 @@ void ASPPawnCPP::SetUpDash()
 	
 		
 		if (States.SPOT_DODGE) {
-			GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, Attributes.SpotDodgeTime, false);
+			WorkData.DashTimer = true;
+			WorkData.DashTimerDelta = 0.0f;
+			WorkData.DashTimerGoal = Attributes.SpotDodgeTime;
+			WorkData.DashTimerStage = 0;
+			
 			Actions.SpotDodge.ExecuteIfBound();
 		}
 		else {
-			GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::StopDash, Attributes.DashTime, false);
+			WorkData.DashTimer = true;
+			WorkData.DashTimerDelta = 0.0f;
+			WorkData.DashTimerGoal = Attributes.DashTime;
+			WorkData.DashTimerStage = 0;
 			if (HasAuthority()) {
 				if(States.ON_GROUND)
 					Actions.Dash.ExecuteIfBound();
@@ -1390,9 +1544,16 @@ void ASPPawnCPP::StopDash()
 
 		if (States.CAN_DASH) States.CAN_DASH = false;
 		
-		GetWorldTimerManager().ClearTimer(WorkData.DashTimer);
+		WorkData.DashTimer = true;
+		WorkData.DashTimerDelta = 0.0f;
+		WorkData.DashTimerStage = 1;
 		if(HasAuthority())
-		GetWorldTimerManager().SetTimer(WorkData.DashTimer, this, &ASPPawnCPP::DashColdown, 1.0f, false);
+			WorkData.DashTimerGoal = 1.0f;
+		else {
+			float PingDelta = GetWorld()->GetFirstPlayerController()->PlayerState->Ping * 2.0f;
+			PingDelta /= 1000.0f;
+			WorkData.DashTimerGoal = 1.0f - PingDelta;
+		}
 
 		DodgeBlink(false);
 		StopDashForces();
@@ -1401,10 +1562,10 @@ void ASPPawnCPP::StopDash()
 
 void ASPPawnCPP::DashColdown()
 {
-	if (HasAuthority()) {
+	
 		if (!States.CAN_DASH) States.CAN_DASH = true;
-		GetWorldTimerManager().ClearTimer(WorkData.DashTimer);
-	}
+		WorkData.DashTimer = false;
+
 }
 
 void ASPPawnCPP::StartLightAttack(float time)
@@ -1415,15 +1576,15 @@ void ASPPawnCPP::StartLightAttack(float time)
 		if (States.MOVE_LEFT)States.MOVE_LEFT = false;
 		if (States.JUMP) {
 			States.JUMP = false;
-			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+			WorkData.JumpTimer = false;
 		}
 		if (States.JUMP_LEFT_WALL) {
 			States.JUMP_LEFT_WALL = false;
-			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+			WorkData.JumpTimer = false;
 		}
 		if (States.JUMP_RIGHT_WALL) {
 			States.JUMP_RIGHT_WALL = false;
-			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+			WorkData.JumpTimer = false;
 		}
 
 		if (States.CAN_MOVE)			States.CAN_MOVE = false;
@@ -1433,17 +1594,21 @@ void ASPPawnCPP::StartLightAttack(float time)
 		if (States.CAN_STRONG_ATTACK)	States.CAN_STRONG_ATTACK = false;
 		if (States.CAN_LIGHT_ATTACK)	States.CAN_LIGHT_ATTACK = false;
 
-		GetWorldTimerManager().ClearTimer(WorkData.LightAttackTimer);
+		WorkData.LightAttackTimer = false;
 		
 		if (!HasAuthority()) {
-			GetWorldTimerManager().ClearTimer(WorkData.ClientTimer);
+			WorkData.ClientTimer = false;
 
 			float PingDelta = GetWorld()->GetFirstPlayerController()->PlayerState->Ping * 2.0f;
 			PingDelta /= 1000.0f;
-			GetWorldTimerManager().SetTimer(WorkData.LightAttackTimer, this, &ASPPawnCPP::EndLightAttack, time-PingDelta, false);
+			WorkData.LightAttackTimer = true;
+			WorkData.LightAttackTimerDelta = 0.0f;
+			WorkData.LightAttackTimerGoal = time - PingDelta;
 		}
 		else {
-			GetWorldTimerManager().SetTimer(WorkData.LightAttackTimer, this, &ASPPawnCPP::EndLightAttack, time, false);
+			WorkData.LightAttackTimer = true;
+			WorkData.LightAttackTimerDelta = 0.0f;
+			WorkData.LightAttackTimerGoal = time;
 		}
 			
 }
@@ -1459,7 +1624,7 @@ void ASPPawnCPP::EndLightAttack()
 		if (!States.CAN_STRONG_ATTACK)	States.CAN_STRONG_ATTACK = true;
 		if (!States.CAN_LIGHT_ATTACK)	States.CAN_LIGHT_ATTACK = true;
 		
-		GetWorldTimerManager().ClearTimer(WorkData.LightAttackTimer);
+		WorkData.LightAttackTimer = false;
 }
 
 void ASPPawnCPP::SetUpStrongAttack()
@@ -1470,19 +1635,19 @@ void ASPPawnCPP::SetUpStrongAttack()
 		if(States.MOVE_LEFT )States.MOVE_LEFT = false;
 		if (States.JUMP) {
 			States.JUMP = false;
-			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+			WorkData.JumpTimer = false;
 		} 
 		if (States.JUMP_LEFT_WALL) {
 			States.JUMP_LEFT_WALL = false;
-			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+			WorkData.JumpTimer = false;
 		}
 		if (States.JUMP_RIGHT_WALL) {
 			States.JUMP_RIGHT_WALL = false;
-			GetWorldTimerManager().ClearTimer(WorkData.JumpTimer);
+			WorkData.JumpTimer = false;
 		}
 		if (States.LIGHT_ATTACK) {
 			States.LIGHT_ATTACK = false;
-			GetWorldTimerManager().ClearTimer(WorkData.LightAttackTimer);
+			WorkData.LightAttackTimer = false;
 		}
 		
 
@@ -1494,8 +1659,8 @@ void ASPPawnCPP::SetUpStrongAttack()
 		if(States.CAN_DASH) States.CAN_DASH  = false;
 		
 		WorkData.StrongAttackMeter = 0;
-		GetWorldTimerManager().ClearTimer(WorkData.StrongAttackTimer);
-		GetWorldTimerManager().SetTimer(WorkData.StrongAttackTimer, this, &ASPPawnCPP::UpgradeStrongAttackMeter, 0.05f, true);
+		WorkData.StrongAttackTimer = true;
+		WorkData.StrongAttackTimerDelta = 0.0f;
 }
 
 void ASPPawnCPP::ClearStrongAttack()
@@ -1510,7 +1675,7 @@ void ASPPawnCPP::ClearStrongAttack()
 		if (!States.CAN_DEFENCE)		States.CAN_DEFENCE = true;
 		if (!States.CAN_DASH)			States.CAN_DASH = true;
 
-		GetWorldTimerManager().ClearTimer(WorkData.StrongAttackTimer);
+		WorkData.StrongAttackTimer = false;
 
 }
 
@@ -1683,8 +1848,11 @@ void ASPPawnCPP::CheckKeyStates()
 				Server_ReleaseDefence();
 				float PingDelta = GetWorld()->GetFirstPlayerController()->PlayerState->Ping * 2.0f;
 				PingDelta /= 1000.0f;
-				GetWorldTimerManager().ClearTimer(WorkData.ClientTimer);
-				GetWorldTimerManager().SetTimer(WorkData.ClientTimer, this, &ASPPawnCPP::ReleaseDefence, PingDelta, false);
+				
+				WorkData.ClientTimer = true;
+				WorkData.ClientTimerDelta = 0.0f;
+				WorkData.ClientTimerGoal = PingDelta;
+				WorkData.ClientTimerStage = 0;
 			}
 			
 		}
@@ -1699,8 +1867,11 @@ void ASPPawnCPP::CheckKeyStates()
 
 			float PingDelta = GetWorld()->GetFirstPlayerController()->PlayerState->Ping * 2.0f;
 			PingDelta /= 1000.0f;
-			GetWorldTimerManager().ClearTimer(WorkData.ClientTimer);
-			GetWorldTimerManager().SetTimer(WorkData.ClientTimer, this, &ASPPawnCPP::StopJump, PingDelta, false);
+
+			WorkData.ClientTimer = true;
+			WorkData.ClientTimerDelta = 0.0f;
+			WorkData.ClientTimerGoal = PingDelta;
+			WorkData.ClientTimerStage = 1;
 		}
 		else if (!LastKeyStates.JUMP_KEY && (States.JUMP || States.JUMP_LEFT_WALL || States.JUMP_RIGHT_WALL)) {
 			if (CanStopJump())
@@ -1721,8 +1892,11 @@ void ASPPawnCPP::CheckKeyStates()
 				
 				float PingDelta = GetWorld()->GetFirstPlayerController()->PlayerState->Ping * 2.0f;
 				PingDelta /= 1000.0f;
-				GetWorldTimerManager().ClearTimer(WorkData.ClientTimer);
-				GetWorldTimerManager().SetTimer(WorkData.ClientTimer, this, &ASPPawnCPP::StopMove, PingDelta, false);
+				
+				WorkData.ClientTimer = true;
+				WorkData.ClientTimerDelta = 0.0f;
+				WorkData.ClientTimerGoal = PingDelta;
+				WorkData.ClientTimerStage = 2;
 			}
 		}
 		else if (!LastKeyStates.LEFT_KEY && States.MOVE_LEFT) {
@@ -1735,8 +1909,11 @@ void ASPPawnCPP::CheckKeyStates()
 				Server_StopMove();
 				float PingDelta = GetWorld()->GetFirstPlayerController()->PlayerState->Ping * 2.0f;
 				PingDelta /= 1000.0f;
-				GetWorldTimerManager().ClearTimer(WorkData.ClientTimer);
-				GetWorldTimerManager().SetTimer(WorkData.ClientTimer, this, &ASPPawnCPP::StopMove, PingDelta, false);
+				
+				WorkData.ClientTimer = true;
+				WorkData.ClientTimerDelta = 0.0f;
+				WorkData.ClientTimerGoal = PingDelta;
+				WorkData.ClientTimerStage = 2;
 			}
 		}
 		else if (!LastKeyStates.RIGHT_KEY && States.MOVE_RIGHT ) {
@@ -1892,9 +2069,11 @@ void ASPPawnCPP::ResetActions(float delay_delta)
 {
 	if (HasAuthority()) {
 		Actions.delay = delay_delta;
-		GetWorldTimerManager().ClearTimer(DelayTimer);
+		WorkData.DelayTimer = false;
 		if (Actions.delay > 0.000f) {
-			GetWorldTimerManager().SetTimer(DelayTimer, this, &ASPPawnCPP::CallDelayAction, Actions.delay, false);
+			WorkData.DelayTimer = true;
+			WorkData.DelayTimerDelta = 0.0f;
+			WorkData.DelayTimerGoal = Actions.delay;
 		}
 	}
 }
@@ -2256,7 +2435,7 @@ void ASPPawnCPP::Client_StopMove_Implementation(FVector2D n_Position)
 			CurrentPosition.Y = 0.0f;
 			SetActorLocation(CurrentPosition, false);
 		
-			GetWorldTimerManager().ClearTimer(WorkData.ClientTimer);
+			WorkData.ClientTimer = false;
 			StopMove();
 		}
 	}

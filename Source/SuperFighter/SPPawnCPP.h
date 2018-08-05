@@ -226,12 +226,6 @@ struct FSPWorkData {
 
 	GENERATED_BODY()
 
-		FTimerHandle JumpTimer;
-		FTimerHandle LightAttackTimer;
-		FTimerHandle StrongAttackTimer;
-		FTimerHandle DashTimer;
-		FTimerHandle ClientTimer;
-
 		FVector PossitionError;
 		float HitStun = 0.0f;
 		//+1 every 0.1 second
@@ -251,6 +245,30 @@ struct FSPWorkData {
 		float DefenceDelta = 0.0f;
 
 		bool CanJumpAgain = true;
+
+		bool JumpTimer;
+		float JumpTimerDelta;
+
+		bool LightAttackTimer;
+		float LightAttackTimerDelta;
+		float LightAttackTimerGoal;
+
+		bool StrongAttackTimer;
+		float StrongAttackTimerDelta;
+
+		bool DashTimer;
+		float DashTimerDelta;
+		float DashTimerGoal;
+		int DashTimerStage;
+
+		bool ClientTimer;
+		float ClientTimerDelta;
+		float ClientTimerGoal;
+		int ClientTimerStage;
+
+		bool DelayTimer;
+		float DelayTimerDelta;
+		float DelayTimerGoal;
 };
 
 USTRUCT(BlueprintType)
@@ -282,7 +300,6 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 	FSPPanActions Actions;
-	FTimerHandle DelayTimer;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 	FVector2D Forces;
 	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
@@ -356,6 +373,17 @@ protected:
 	void ClearStatesWhileHit();
 
 	void ManageSyncFrames(float DeltaTime);
+
+	void UpdateTimers(float DeltaTime);
+
+	void ManageStunState(float DeltaTime);
+	void ManageDefence(float DeltaTime);
+	void ManageJump(float DeltaTime);
+	void ManageLightAttack(float DeltaTime);
+	void ManageStrongAttack(float DeltaTime);
+	void ManageDash(float DeltaTime);
+	void ManageClient(float DeltaTime);
+	void ManageDelay(float DeltaTime);
 
 public:
 
@@ -529,11 +557,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void HitPunch(bool FromClient = false, FVector2D ClientAxisPosition = FVector2D(0, 0));
-
-	UFUNCTION(BlueprintCallable, Category = SuperFighter)
-		void ManageStunState(float DeltaTime);
-	UFUNCTION(BlueprintCallable, Category = SuperFighter)
-		void ManageDefence(float DeltaTime);
 
 	UFUNCTION(Server, unreliable, WithValidation)
 		void Server_HitPunch(FVector2D AxisPosition);
