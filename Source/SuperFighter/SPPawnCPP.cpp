@@ -128,7 +128,8 @@ void ASPPawnCPP::Tick(float DeltaTime)
 		Gravity(DeltaTime);
 		CalculateMovement(DeltaTime);
 		UpdateTimers(DeltaTime);
-
+		if(GetController() == UGameplayStatics::GetPlayerController(GetWorld(), 0))
+		CheckKeyStates();
 
 		if (States.DEFENCE) {
 			DrawDefence();
@@ -145,12 +146,13 @@ void ASPPawnCPP::Tick(float DeltaTime)
 		Gravity(DeltaTime);
 		CalculateMovement(DeltaTime);
 		UpdateTimers(DeltaTime);
-
+		if (GetController() == UGameplayStatics::GetPlayerController(GetWorld(), 0))
+		CheckKeyStates();
 
 		if (States.DEFENCE) {
 			DrawDefence();
 		}
-		CheckKeyStates();
+		
 
 		//FixPossitionError();
 		//GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, WorkData.PossitionError.ToCompactString());
@@ -1841,18 +1843,33 @@ void ASPPawnCPP::CalculateMovement(float DeltaTime)
 }
 
 void ASPPawnCPP::CheckKeyStates()
-{
+{	
+	float PingDelta = 0.0f;
+
 	if (!HasAuthority()) {
+		AController *check = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+		if (IsValid(check)) {
+			APlayerState *check2 = check->PlayerState;
+			if (IsValid(check2))
+			{
+				PingDelta = check->PlayerState->Ping * 2.0f;
+				PingDelta /= 1000.0f;
+			}
+		}
+		
+	}
+
+	
 		if (LastKeyStates.DEFENCE_KEY && !KeyStates.DEFENCE_KEY) {
 			if (CanReleaseDefence()) {
-				Server_ReleaseDefence();
-				float PingDelta = GetWorld()->GetFirstPlayerController()->PlayerState->Ping * 2.0f;
-				PingDelta /= 1000.0f;
-				
-				WorkData.ClientTimer = true;
-				WorkData.ClientTimerDelta = 0.0f;
-				WorkData.ClientTimerGoal = PingDelta;
-				WorkData.ClientTimerStage = 0;
+					Server_ReleaseDefence();
+
+					if (!HasAuthority()) {
+						WorkData.ClientTimer = true;
+						WorkData.ClientTimerDelta = 0.0f;
+						WorkData.ClientTimerGoal = PingDelta;
+						WorkData.ClientTimerStage = 0;
+					}	
 			}
 			
 		}
@@ -1865,13 +1882,12 @@ void ASPPawnCPP::CheckKeyStates()
 			if (CanStopJump())
 			Server_StopJump();
 
-			float PingDelta = GetWorld()->GetFirstPlayerController()->PlayerState->Ping * 2.0f;
-			PingDelta /= 1000.0f;
-
-			WorkData.ClientTimer = true;
-			WorkData.ClientTimerDelta = 0.0f;
-			WorkData.ClientTimerGoal = PingDelta;
-			WorkData.ClientTimerStage = 1;
+			if (!HasAuthority()) {
+				WorkData.ClientTimer = true;
+				WorkData.ClientTimerDelta = 0.0f;
+				WorkData.ClientTimerGoal = PingDelta;
+				WorkData.ClientTimerStage = 1;
+			}
 		}
 		else if (!LastKeyStates.JUMP_KEY && (States.JUMP || States.JUMP_LEFT_WALL || States.JUMP_RIGHT_WALL)) {
 			if (CanStopJump())
@@ -1890,13 +1906,12 @@ void ASPPawnCPP::CheckKeyStates()
 			if (States.MOVE_LEFT && CanStopMove()) {
 				Server_StopMove();
 				
-				float PingDelta = GetWorld()->GetFirstPlayerController()->PlayerState->Ping * 2.0f;
-				PingDelta /= 1000.0f;
-				
-				WorkData.ClientTimer = true;
-				WorkData.ClientTimerDelta = 0.0f;
-				WorkData.ClientTimerGoal = PingDelta;
-				WorkData.ClientTimerStage = 2;
+				if (!HasAuthority()) {
+					WorkData.ClientTimer = true;
+					WorkData.ClientTimerDelta = 0.0f;
+					WorkData.ClientTimerGoal = PingDelta;
+					WorkData.ClientTimerStage = 2;
+				}
 			}
 		}
 		else if (!LastKeyStates.LEFT_KEY && States.MOVE_LEFT) {
@@ -1907,13 +1922,13 @@ void ASPPawnCPP::CheckKeyStates()
 		else if (LastKeyStates.RIGHT_KEY && !KeyStates.RIGHT_KEY) {
 			if (States.MOVE_RIGHT && CanStopMove()) {
 				Server_StopMove();
-				float PingDelta = GetWorld()->GetFirstPlayerController()->PlayerState->Ping * 2.0f;
-				PingDelta /= 1000.0f;
-				
-				WorkData.ClientTimer = true;
-				WorkData.ClientTimerDelta = 0.0f;
-				WorkData.ClientTimerGoal = PingDelta;
-				WorkData.ClientTimerStage = 2;
+			
+				if (!HasAuthority()) {
+					WorkData.ClientTimer = true;
+					WorkData.ClientTimerDelta = 0.0f;
+					WorkData.ClientTimerGoal = PingDelta;
+					WorkData.ClientTimerStage = 2;
+				}
 			}
 		}
 		else if (!LastKeyStates.RIGHT_KEY && States.MOVE_RIGHT ) {
@@ -1999,7 +2014,6 @@ void ASPPawnCPP::CheckKeyStates()
 		}
 
 		LastKeyStates = KeyStates;
-	}
 }
 
 float ASPPawnCPP::ValuePerSecond(float value, float deltaTime)

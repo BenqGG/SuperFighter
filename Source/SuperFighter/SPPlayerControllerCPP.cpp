@@ -72,10 +72,16 @@ void ASPPlayerControllerCPP::Server_SpawnPawn_Implementation()
 	}
 
 	APawn* SpawnedPawn;
-	if(gm->PlayersAmount() > 1)
-	SpawnedPawn = Native_SpawnSPPawnBP(location);
-	else
-	SpawnedPawn = Native_SpawnSPPawnBP(location, true);
+	if (gm->PlayersAmount() > 1) {
+		location = gm->FindPlayerStart(this, "Uno")->GetActorLocation();
+		SpawnedPawn = Native_SpawnSPPawnBP(location);
+	}
+	
+	else {
+		location = gm->FindPlayerStart(this, "Dos")->GetActorLocation();
+		SpawnedPawn = Native_SpawnSPPawnBP(location, true);
+	}
+	
 
 	if (IsValid(SpawnedPawn)) {
 		Possess(SpawnedPawn);

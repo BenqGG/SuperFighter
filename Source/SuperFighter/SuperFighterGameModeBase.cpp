@@ -27,7 +27,7 @@ void ASuperFighterGameModeBase::PostLogin(APlayerController * NewPlayer)
 	Super::PostLogin(NewPlayer);
 	ASPPlayerControllerCPP *CastedNewPlayer = Cast<ASPPlayerControllerCPP>(NewPlayer);
 	
-	if (IsValid(CastedNewPlayer) && WorkData.PlayersAmount < 3)
+	if (IsValid(CastedNewPlayer) && WorkData.PlayersAmount < 2)
 	{
 		WorkData.PlayersAmount++;
 		CastedNewPlayer->Client_PostLogin();

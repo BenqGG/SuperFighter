@@ -222,6 +222,18 @@ struct FSPPawnStates {
 };
 
 USTRUCT(BlueprintType)
+struct FSPServerKeys {
+
+	GENERATED_BODY()
+	
+	FTimerHandle DefenceKeyDown;
+	FTimerHandle DefenceKeyUp;
+	FTimerHandle JumpKeyDown;
+	FTimerHandle JumpKeyUp;
+
+};
+
+USTRUCT(BlueprintType)
 struct FSPWorkData {
 
 	GENERATED_BODY()
@@ -321,6 +333,7 @@ protected:
 
 	FSPKeyStates KeyStates;
 	FSPKeyStates LastKeyStates;
+	FSPServerKeys KeyTimers;
 
 	//Apply Forces working on player
 	void ApplyForces(float DeltaTime);
@@ -692,7 +705,65 @@ public:
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void SetSAttackKey(bool state) { KeyStates.SATTACK_KEY = state; };
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
-		void SetDefenceKey(bool state) { KeyStates.DEFENCE_KEY = state; };
+		void SetDefenceKey(bool state) { 
+		if (!HasAuthority()) {
+			KeyStates.DEFENCE_KEY = state;
+		}
+		else {
+			
+			float PingDelta = 0.01f;
+
+			AController *check = UGameplayStatics::GetPlayerController(GetWorld(), 1);
+			if (IsValid(check)) {
+				APlayerState *check2 = check->PlayerState;
+				if (IsValid(check2))
+				{
+					PingDelta = check->PlayerState->ExactPing / 2.0f + 0.01f;
+					PingDelta /= 1000.0f;
+				}
+			}
+
+			if (state) {
+				GetWorldTimerManager().SetTimer(KeyTimers.DefenceKeyDown, this, &ASPPawnCPP::DefenceKeyDown, PingDelta, false);
+			}
+			else {
+				GetWorldTimerManager().SetTimer(KeyTimers.DefenceKeyUp, this, &ASPPawnCPP::DefenceKeyUp, PingDelta, false);
+			}
+		}
+	};
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
-		void SetJumpKey(bool state) { KeyStates.JUMP_KEY = state; };
+		void SetJumpKey(bool state) { 
+		
+		if (!HasAuthority()) {
+			KeyStates.JUMP_KEY = state;
+		}
+		else {
+
+			float PingDelta = 0.01f;
+
+			AController *check = UGameplayStatics::GetPlayerController(GetWorld(), 1);
+			if (IsValid(check)) {
+				APlayerState *check2 = check->PlayerState;
+				if (IsValid(check2))
+				{
+					PingDelta = check->PlayerState->ExactPing / 2.0f + 0.01f;
+					PingDelta /= 1000.0f;
+				}
+			}
+
+			if (state) {
+				GetWorldTimerManager().SetTimer(KeyTimers.JumpKeyDown, this, &ASPPawnCPP::JumpKeyDown, PingDelta, false);
+			}
+			else {
+				GetWorldTimerManager().SetTimer(KeyTimers.JumpKeyUp, this, &ASPPawnCPP::JumpKeyUp, PingDelta, false);
+			}
+		}
+	};
+
+	
+		void DefenceKeyUp() { KeyStates.DEFENCE_KEY = false; };
+		void DefenceKeyDown() { KeyStates.DEFENCE_KEY = true; };
+
+		void JumpKeyUp() { KeyStates.JUMP_KEY = false; };
+		void JumpKeyDown() { KeyStates.JUMP_KEY = true; };
 };
