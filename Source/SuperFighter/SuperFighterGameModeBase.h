@@ -41,4 +41,6 @@ public:
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 
 	int PlayersAmount() { return WorkData.PlayersAmount; }
+
+	void RemovePlayer() { WorkData.PlayersAmount--; }
 };

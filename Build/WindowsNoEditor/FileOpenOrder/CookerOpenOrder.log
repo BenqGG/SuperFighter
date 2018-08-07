@@ -381,8 +381,10 @@
 "../../../SuperFighter/Content/ASSETS/Background/cloud-wallpaper-cool.uasset" 380
 "../../../SuperFighter/Content/ASSETS/Background/cloud-wallpaper-cool_Sprite.uasset" 381
 "../../../SuperFighter/Content/Arena1.umap" 382
-"../../../SuperFighter/Content/BLUEPRINTS/WORLDSETTINGS/MainMenu/MaineMenu1.uasset" 383
-"../../../SuperFighter/Content/BLUEPRINTS/WORLDSETTINGS/MainMenu/MainMenuHud.uasset" 384
-"../../../SuperFighter/Content/BLUEPRINTS/WORLDSETTINGS/MainMenu/MainMenuGameMode.uasset" 385
-"../../../SuperFighter/Content/MainMenu.umap" 386
-"../../../Engine/Content/Maps/Entry.umap" 387
+"../../../SuperFighter/Content/BLUEPRINTS/WORLDSETTINGS/MainMenu/Home.uasset" 383
+"../../../SuperFighter/Content/BLUEPRINTS/WORLDSETTINGS/MainMenu/LocalGame.uasset" 384
+"../../../SuperFighter/Content/BLUEPRINTS/WORLDSETTINGS/MainMenu/MaineMenu.uasset" 385
+"../../../SuperFighter/Content/BLUEPRINTS/WORLDSETTINGS/MainMenu/MainMenuHud.uasset" 386
+"../../../SuperFighter/Content/BLUEPRINTS/WORLDSETTINGS/MainMenu/MainMenuGameMode.uasset" 387
+"../../../SuperFighter/Content/MainMenu.umap" 388
+"../../../Engine/Content/Maps/Entry.umap" 389

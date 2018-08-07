@@ -22,6 +22,17 @@ void ASPPlayerControllerCPP::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 }
 
+void ASPPlayerControllerCPP::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+	
+	if (HasAuthority()) {
+		ASuperFighterGameModeBase* gm;
+		gm = Cast<ASuperFighterGameModeBase>(GetWorld()->GetAuthGameMode());
+		gm->RemovePlayer();
+	}
+}
+
 FVector2D ASPPlayerControllerCPP::AxisPosition_Implementation()
 {
 	return FVector2D();

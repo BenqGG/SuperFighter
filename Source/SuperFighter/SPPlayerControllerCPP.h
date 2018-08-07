@@ -26,6 +26,9 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaSeconds) override;
 
+	// Called when the game starts or when spawned
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 	UFUNCTION(Server, reliable, WithValidation)
 	void Server_SpawnPawn();
 
