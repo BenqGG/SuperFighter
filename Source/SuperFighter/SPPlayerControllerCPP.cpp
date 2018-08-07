@@ -15,6 +15,7 @@ ASPPlayerControllerCPP::ASPPlayerControllerCPP()
 void ASPPlayerControllerCPP::BeginPlay()
 {
 	Super::BeginPlay();
+	
 }
 
 void ASPPlayerControllerCPP::Tick(float DeltaSeconds)

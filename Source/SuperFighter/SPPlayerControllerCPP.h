@@ -40,4 +40,5 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
 		FVector2D AxisPosition();
+
 };

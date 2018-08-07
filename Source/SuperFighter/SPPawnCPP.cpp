@@ -137,8 +137,6 @@ void ASPPawnCPP::Tick(float DeltaTime)
 		if (Forces.X != 0.0f || Forces.Y != 0.0f) {
 			ClientPosition = GetActorLocation();
 		}
-
-		GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, FString::SanitizeFloat(GetController()->PlayerState->ExactPing));
 	}
 	else {
 		ApplyForces(DeltaTime);
