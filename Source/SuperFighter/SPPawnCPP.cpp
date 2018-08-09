@@ -9,10 +9,6 @@ ASPPawnCPP::ASPPawnCPP()
 	// Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
-	Forces.X = 0.0f;
-	Forces.Y = 0.0f;
-	ClientPosition = GetActorLocation();
-
 	collision_box = CreateDefaultSubobject<UBoxComponent>(TEXT("Collision"));
 	RootComponent = collision_box;
 	hit_box = CreateDefaultSubobject<UBoxComponent>(TEXT("Hit_Box"));
@@ -21,6 +17,10 @@ ASPPawnCPP::ASPPawnCPP()
 	animation = CreateDefaultSubobject<UPaperFlipbookComponent>(TEXT("Animation"));
 	animation->SetupAttachment(RootComponent);
 	animation->SetRelativeLocation(FVector(0.0f, 0.0f, 0.0f));
+
+	Forces.X = 0.0f;
+	Forces.Y = 0.0f;
+	ClientPosition = GetActorLocation();
 
 	StaticAttributes.MovementScale = 10.0f;
 	StaticAttributes.AirMovementScale = 4.0f;
@@ -60,6 +60,8 @@ ASPPawnCPP::ASPPawnCPP()
 	WorkData.DelayTimer = false;
 	WorkData.DelayTimerDelta = 0.0f;
 	WorkData.DelayTimerGoal = 0.0f;
+
+	WorkData.Stocks = 3;
 
 	ClientCurrentDefence = 0.0f;
 	ClientInjuries = 0.0f;
@@ -108,6 +110,15 @@ ASPPawnCPP::ASPPawnCPP()
 	LastKeyStates.SATTACK_KEY = false;
 	LastKeyStates.JUMP_KEY = false;
 	LastKeyStates.DEFENCE_KEY = false;
+
+	KeyTimers.FireLeftUp = false;
+	KeyTimers.FireLeftDown = false;
+	KeyTimers.FireRightUp = false;
+	KeyTimers.FireRightDown = false;
+	KeyTimers.FireUpUp = false;
+	KeyTimers.FireUpDown = false;
+	KeyTimers.FireDownUp = false;
+	KeyTimers.FireDownDown = false;
 }
 
 // Called when the game starts or when spawned
@@ -2199,6 +2210,111 @@ void ASPPawnCPP::DashEnd_Implementation()
 {
 }
 
+bool ASPPawnCPP::LooseStock_Validate() {
+	return true;
+}
+
+void ASPPawnCPP::LooseStock_Implementation()
+{
+	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Magenta, "STOCK LOST");
+	Forces.X = 0.0f;
+	Forces.Y = 0.0f;
+
+	WorkData.Stocks--;
+	if (HasAuthority() && WorkData.Stocks < 1) {
+		EndMatch();
+	}
+	WorkData.AirJumped = 0;
+
+	WorkData.FacingRight = true;
+	WorkData.Injuries = 0;
+	WorkData.StrongAttackMeter = 0;
+	WorkData.HitStun = 0.0f;
+	WorkData.CurrentDefence = 0.0f;
+	WorkData.WasHit = false;
+	WorkData.HitForce = FVector(0.0f, 0.0, 0.0f);
+	WorkData.AddingForce = false;
+	WorkData.AddForce = FVector(0.0f, 0.0, 0.0f);
+	WorkData.DefenceDelta = 0.0f;
+	WorkData.JumpTimer = false;
+	WorkData.JumpTimerDelta = 0.0f;
+	WorkData.LightAttackTimer = false;
+	WorkData.LightAttackTimerDelta = 0.0f;
+	WorkData.LightAttackTimerGoal = 0.0f;
+	WorkData.StrongAttackTimer = false;
+	WorkData.StrongAttackTimerDelta = 0.0f;
+	WorkData.DashTimer = false;
+	WorkData.DashTimerDelta = 0.0f;
+	WorkData.DashTimerGoal = 0.0f;
+	WorkData.DashTimerStage = 0;
+
+	WorkData.ClientTimer = false;
+	WorkData.ClientTimerDelta = 0.0f;
+	WorkData.ClientTimerGoal = 0.0f;
+	WorkData.ClientTimerStage = 0;
+
+	WorkData.DelayTimer = false;
+	WorkData.DelayTimerDelta = 0.0f;
+	WorkData.DelayTimerGoal = 0.0f;
+
+	ClientCurrentDefence = 0.0f;
+	ClientInjuries = 0.0f;
+
+	Actions.delay = 0.0f;
+
+	States.MOVE_RIGHT = false;
+	States.MOVE_LEFT = false;
+	States.JUMP = false;
+	States.JUMP_LEFT_WALL = false;
+	States.JUMP_RIGHT_WALL = false;
+	States.ON_GROUND = false;
+	States.BUSY = false;
+	States.CAN_MOVE = true;
+	States.CAN_JUMP = true;
+	States.CAN_LIGHT_ATTACK = true;
+	States.CAN_STRONG_ATTACK = true;
+	States.CAN_DEFENCE = true;
+	States.CAN_DASH = true;
+	States.DEFENCE = false;
+	States.STRONG_ATTACK = false;
+	States.LIGHT_ATTACK = false;
+	States.DASH = false;
+	States.SIDE_DASH = false;
+	States.UP_DASH = false;
+	States.DOWN_DASH = false;
+	States.SPOT_DODGE = false;
+
+	KeyStates.LEFT_KEY = false;
+	KeyStates.RIGHT_KEY = false;
+	KeyStates.UP_KEY = false;
+	KeyStates.DOWN_KEY = false;
+
+	KeyStates.LATTACK_KEY = false;
+	KeyStates.SATTACK_KEY = false;
+	KeyStates.JUMP_KEY = false;
+	KeyStates.DEFENCE_KEY = false;
+
+	LastKeyStates.LEFT_KEY = false;
+	LastKeyStates.RIGHT_KEY = false;
+	LastKeyStates.UP_KEY = false;
+	LastKeyStates.DOWN_KEY = false;
+
+	LastKeyStates.LATTACK_KEY = false;
+	LastKeyStates.SATTACK_KEY = false;
+	LastKeyStates.JUMP_KEY = false;
+	LastKeyStates.DEFENCE_KEY = false;
+
+	KeyTimers.FireLeftUp = false;
+	KeyTimers.FireLeftDown = false;
+	KeyTimers.FireRightUp = false;
+	KeyTimers.FireRightDown = false;
+	KeyTimers.FireUpUp = false;
+	KeyTimers.FireUpDown = false;
+	KeyTimers.FireDownUp = false;
+	KeyTimers.FireDownDown = false;
+	SetUpIdle();
+}
+
 bool ASPPawnCPP::FacingRight()
 {
 	if (WorkData.FacingRight)
@@ -2626,4 +2742,29 @@ void ASPPawnCPP::Client_GetHit_Implementation(FVector2D n_Position, FVector n_Kn
 bool ASPPawnCPP::Client_GetHit_Validate(FVector2D n_Position, FVector n_KnockBack, float n_HitStun)
 {
 	return true;
+}
+
+
+void ASPPawnCPP::EndMatch()
+{
+	if (HasAuthority()) {
+		Send_EndMatch();
+		ProceedEndMatch();
+	}
+}
+
+void ASPPawnCPP::ProceedEndMatch_Implementation()
+{
+}
+
+bool ASPPawnCPP::Send_EndMatch_Validate()
+{
+	return true;
+}
+
+void ASPPawnCPP::Send_EndMatch_Implementation()
+{
+	if (!HasAuthority()) {
+		ProceedEndMatch();
+	}
 }

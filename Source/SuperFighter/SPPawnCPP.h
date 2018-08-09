@@ -234,14 +234,23 @@ struct FSPServerKeys {
 	FTimerHandle SAttackKeyUp;
 	FTimerHandle LAttackKeyDown;
 	FTimerHandle LAttackKeyUp;
+
 	FTimerHandle DownKeyDown;
+	bool FireDownDown;
 	FTimerHandle DownKeyUp;
+	bool FireDownUp;
 	FTimerHandle UpKeyDown;
+	bool FireUpDown;
 	FTimerHandle UpKeyUp;
+	bool FireUpUp;
 	FTimerHandle RightKeyDown;
+	bool FireRightDown;
 	FTimerHandle RightKeyUp;
+	bool FireRightUp;
 	FTimerHandle LeftKeyDown;
+	bool FireLeftDown;
 	FTimerHandle LeftKeyUp;
+	bool FireLeftUp;
 };
 
 USTRUCT(BlueprintType)
@@ -265,6 +274,7 @@ struct FSPWorkData {
 		//(SOME CHAPMIONS MAY USED TO SOME ADDITIONAL THINGS)
 		//You can not add to hit stun (you can only hit stun unstun enemy, if he is already hit stun then hit stun wont replenish
 		int Injuries = 0;
+		int Stocks = 0;
 		float DefenceDelta = 0.0f;
 
 		bool CanJumpAgain = true;
@@ -652,6 +662,15 @@ public:
 	UFUNCTION(NetMulticast, reliable, WithValidation, Category = SuperFighter)
 		void Client_GetHit(FVector2D n_Position, FVector n_KnockBack, float n_HitStun);
 
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void EndMatch();
+
+	UFUNCTION(NetMulticast, reliable, WithValidation, Category = SuperFighter)
+		void Send_EndMatch();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
+		void ProceedEndMatch();
+
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
 		void GetHit(float hitstun, float damage, FVector knockback);
 
@@ -664,6 +683,9 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
 		void ChangeAnimationRotation();
+
+	UFUNCTION(NetMulticast, reliable, WithValidation, BlueprintCallable, Category = SuperFighter)
+		void LooseStock();
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
 		void DashEnd();
@@ -679,6 +701,21 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		float CurrentHitStun();
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		int Injuries() {
+		return WorkData.Injuries;
+	}
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void SetStocks(int stocks) {
+		WorkData.Stocks = stocks;
+	}
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		int Stocks() {
+		return WorkData.Stocks;
+	}
 
 	FVector2D GetSendPosition();
 
@@ -723,10 +760,17 @@ public:
 			}
 
 			if (state) {
-				GetWorldTimerManager().SetTimer(KeyTimers.LeftKeyDown, this, &ASPPawnCPP::LeftKeyDown, PingDelta, false);
+				if (!KeyTimers.FireLeftDown) {
+					GetWorldTimerManager().SetTimer(KeyTimers.LeftKeyDown, this, &ASPPawnCPP::LeftKeyDown, PingDelta, false);
+					KeyTimers.FireLeftDown = true;
+				}
+				
 			}
 			else {
-				GetWorldTimerManager().SetTimer(KeyTimers.LeftKeyUp, this, &ASPPawnCPP::LeftKeyUp, PingDelta, false);
+				if (!KeyTimers.FireLeftUp) {
+					GetWorldTimerManager().SetTimer(KeyTimers.LeftKeyUp, this, &ASPPawnCPP::LeftKeyUp, PingDelta, false);
+					KeyTimers.FireLeftUp = true;
+				}	
 			}
 		}
 	};
@@ -751,10 +795,16 @@ public:
 			}
 
 			if (state) {
-				GetWorldTimerManager().SetTimer(KeyTimers.RightKeyDown, this, &ASPPawnCPP::RightKeyDown, PingDelta, false);
+				if (!KeyTimers.FireRightDown) {
+					GetWorldTimerManager().SetTimer(KeyTimers.RightKeyDown, this, &ASPPawnCPP::RightKeyDown, PingDelta, false);
+					KeyTimers.FireRightDown = true;
+				}
 			}
-			else {
-				GetWorldTimerManager().SetTimer(KeyTimers.RightKeyUp, this, &ASPPawnCPP::RightKeyUp, PingDelta, false);
+			else{
+				if (!KeyTimers.FireRightUp) {
+					GetWorldTimerManager().SetTimer(KeyTimers.RightKeyUp, this, &ASPPawnCPP::RightKeyUp, PingDelta, false);
+					KeyTimers.FireRightUp = true;
+				}
 			}
 		}
 	};
@@ -779,10 +829,17 @@ public:
 			}
 
 			if (state) {
-				GetWorldTimerManager().SetTimer(KeyTimers.UpKeyDown, this, &ASPPawnCPP::UpKeyDown, PingDelta, false);
+				if (!KeyTimers.FireUpDown) {
+					GetWorldTimerManager().SetTimer(KeyTimers.UpKeyDown, this, &ASPPawnCPP::UpKeyDown, PingDelta, false);
+					KeyTimers.FireUpDown = true;
+				}
 			}
-			else {
-				GetWorldTimerManager().SetTimer(KeyTimers.UpKeyUp, this, &ASPPawnCPP::UpKeyUp, PingDelta, false);
+			else  {
+				if (!KeyTimers.FireUpUp) {
+					GetWorldTimerManager().SetTimer(KeyTimers.UpKeyUp, this, &ASPPawnCPP::UpKeyUp, PingDelta, false);
+					KeyTimers.FireUpUp = true;
+				}
+				
 			}
 		}
 	};
@@ -806,11 +863,19 @@ public:
 				}
 			}
 
-			if (state) {
-				GetWorldTimerManager().SetTimer(KeyTimers.DownKeyDown, this, &ASPPawnCPP::DownKeyDown, PingDelta, false);
+			if (state ) {
+				if (!KeyTimers.FireDownDown) {
+					GetWorldTimerManager().SetTimer(KeyTimers.DownKeyDown, this, &ASPPawnCPP::DownKeyDown, PingDelta, false);
+					KeyTimers.FireDownDown = true;
+				}
+				
 			}
-			else {
-				GetWorldTimerManager().SetTimer(KeyTimers.DownKeyUp, this, &ASPPawnCPP::DownKeyUp, PingDelta, false);
+			else{
+				if (!KeyTimers.FireDownUp) {
+					GetWorldTimerManager().SetTimer(KeyTimers.DownKeyUp, this, &ASPPawnCPP::DownKeyUp, PingDelta, false);
+					KeyTimers.FireDownUp = true;
+				}
+				
 			}
 		}
 	};
@@ -941,15 +1006,16 @@ public:
 		void LAttackKeyUp() { KeyStates.LATTACK_KEY = false; };
 		void LAttackKeyDown() { KeyStates.LATTACK_KEY = true; };
 
-		void DownKeyUp() { KeyStates.DOWN_KEY = false; };
-		void DownKeyDown() { KeyStates.DOWN_KEY = true; };
+		void DownKeyUp() { KeyStates.DOWN_KEY = false; KeyTimers.FireDownUp = false;};
+		void DownKeyDown() { KeyStates.DOWN_KEY = true; KeyTimers.FireDownDown = false;};
 
-		void UpKeyUp() { KeyStates.UP_KEY = false; };
-		void UpKeyDown() { KeyStates.UP_KEY = true; };
+		void UpKeyUp() { KeyStates.UP_KEY = false; KeyTimers.FireUpUp = false;};
+		void UpKeyDown() { KeyStates.UP_KEY = true; KeyTimers.FireUpDown = false;};
 
-		void RightKeyUp() { KeyStates.RIGHT_KEY = false; };
-		void RightKeyDown() { KeyStates.RIGHT_KEY = true; };
+		void RightKeyUp() { KeyStates.RIGHT_KEY = false; KeyTimers.FireRightUp = false;};
+		void RightKeyDown() { KeyStates.RIGHT_KEY = true; KeyTimers.FireRightDown = false;};
 
-		void LeftKeyUp() { KeyStates.LEFT_KEY = false; };
-		void LeftKeyDown() { KeyStates.LEFT_KEY = true; };
+		void LeftKeyUp() { KeyStates.LEFT_KEY = false; KeyTimers.FireLeftUp = false; };
+		void LeftKeyDown() { KeyStates.LEFT_KEY = true; KeyTimers.FireLeftDown = false;
+		};
 };
