@@ -6,9 +6,9 @@
 
 
 
-USPGameInstanceCPP::USPGameInstanceCPP()
+USPGameInstanceCPP::USPGameInstanceCPP(const FObjectInitializer& ObjectInitializer)
+: Super(ObjectInitializer)
 {
-
 
 }
 

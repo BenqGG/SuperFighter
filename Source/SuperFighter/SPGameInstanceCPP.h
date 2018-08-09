@@ -13,5 +13,5 @@ class SUPERFIGHTER_API USPGameInstanceCPP : public UGameInstance
 {
 	GENERATED_BODY()
 		// Sets default values for this actor's properties
-		USPGameInstanceCPP();
+		USPGameInstanceCPP(const FObjectInitializer& ObjectInitializer);
 };
