@@ -274,7 +274,6 @@ struct FSPWorkData {
 		//(SOME CHAPMIONS MAY USED TO SOME ADDITIONAL THINGS)
 		//You can not add to hit stun (you can only hit stun unstun enemy, if he is already hit stun then hit stun wont replenish
 		int Injuries = 0;
-		int Stocks = 0;
 		float DefenceDelta = 0.0f;
 
 		bool CanJumpAgain = true;
@@ -662,15 +661,6 @@ public:
 	UFUNCTION(NetMulticast, reliable, WithValidation, Category = SuperFighter)
 		void Client_GetHit(FVector2D n_Position, FVector n_KnockBack, float n_HitStun);
 
-	UFUNCTION(BlueprintCallable, Category = SuperFighter)
-		void EndMatch();
-
-	UFUNCTION(NetMulticast, reliable, WithValidation, Category = SuperFighter)
-		void Send_EndMatch();
-
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
-		void ProceedEndMatch();
-
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
 		void GetHit(float hitstun, float damage, FVector knockback);
 
@@ -705,16 +695,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		int Injuries() {
 		return WorkData.Injuries;
-	}
-
-	UFUNCTION(BlueprintCallable, Category = SuperFighter)
-		void SetStocks(int stocks) {
-		WorkData.Stocks = stocks;
-	}
-
-	UFUNCTION(BlueprintCallable, Category = SuperFighter)
-		int Stocks() {
-		return WorkData.Stocks;
 	}
 
 	FVector2D GetSendPosition();

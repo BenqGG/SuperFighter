@@ -61,8 +61,6 @@ ASPPawnCPP::ASPPawnCPP()
 	WorkData.DelayTimerDelta = 0.0f;
 	WorkData.DelayTimerGoal = 0.0f;
 
-	WorkData.Stocks = 3;
-
 	ClientCurrentDefence = 0.0f;
 	ClientInjuries = 0.0f;
 
@@ -2220,10 +2218,7 @@ void ASPPawnCPP::LooseStock_Implementation()
 	Forces.X = 0.0f;
 	Forces.Y = 0.0f;
 
-	WorkData.Stocks--;
-	if (HasAuthority() && WorkData.Stocks < 1) {
-		EndMatch();
-	}
+	
 	WorkData.AirJumped = 0;
 
 	WorkData.FacingRight = true;
@@ -2742,29 +2737,4 @@ void ASPPawnCPP::Client_GetHit_Implementation(FVector2D n_Position, FVector n_Kn
 bool ASPPawnCPP::Client_GetHit_Validate(FVector2D n_Position, FVector n_KnockBack, float n_HitStun)
 {
 	return true;
-}
-
-
-void ASPPawnCPP::EndMatch()
-{
-	if (HasAuthority()) {
-		Send_EndMatch();
-		ProceedEndMatch();
-	}
-}
-
-void ASPPawnCPP::ProceedEndMatch_Implementation()
-{
-}
-
-bool ASPPawnCPP::Send_EndMatch_Validate()
-{
-	return true;
-}
-
-void ASPPawnCPP::Send_EndMatch_Implementation()
-{
-	if (!HasAuthority()) {
-		ProceedEndMatch();
-	}
 }
