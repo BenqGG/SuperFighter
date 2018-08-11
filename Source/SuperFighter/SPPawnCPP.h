@@ -376,6 +376,9 @@ protected:
 		void ChangeAnimation(FSPAnimationDetails details);
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void QuickChangeAnimation(UPaperFlipbook *Flipbook, FVector2D HitBo);
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void ChangeMovementSpeed(float speed);
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
@@ -418,6 +421,78 @@ protected:
 	void ManageClient(float DeltaTime);
 	void ManageDelay(float DeltaTime);
 
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		//Call on the beggining of every action, It block all possible moves so you need to unlock only those that are 
+		//avaiable on this action and not worry about disabling ever other by hand
+	void StartNewAction();
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void ResetRestrictions();
+
+	//ACTIONS---------------------------------------------------------
+	float DelayActionTime;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction ActionDelay;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction ActionMove;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction ActionStopMove;
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction ActionJump;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction ActionStopJump;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction ActionTouchGround;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction ActionLeaveGround;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction ActionDefence;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction ActionReleaseDefence;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction ActionDash;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction ActionAirDash;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction ActionSpotDodge;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction ActionLightAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction ActionUpperLightAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction ActionDownLightAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction ActionAirLightAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction ActionAirUpperLightAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction ActionAirDownLightAttack;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction ActionRealeaseStrongAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction ActionStrongAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction ActionSideStrongAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction ActionUpperStrongAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction ActionDownStrongAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction ActionAirStrongAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction ActionAirSideStrongAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction ActionAirUpperStrongAttack;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FActionFunction ActionAirDownStrongAttack;
+	//END ACTIONS -----------------------------------------------------
+
 public:
 
 	// Sets default values for this pawn's properties
@@ -449,19 +524,19 @@ public:
 		void UnBusy();
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
-		void SetCanJump(bool can) { if (HasAuthority() && States.CAN_JUMP != can) States.CAN_JUMP = can; };
+		void SetCanJump(bool can) { if (States.CAN_JUMP != can) States.CAN_JUMP = can; };
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
-		void SetCanMove(bool can) { if (HasAuthority() && States.CAN_MOVE != can) States.CAN_MOVE = can; };
+		void SetCanMove(bool can) { if (States.CAN_MOVE != can) States.CAN_MOVE = can; };
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
-		void SetCanLightAttack(bool can) { if (HasAuthority() && States.CAN_LIGHT_ATTACK != can) States.CAN_LIGHT_ATTACK = can; };
+		void SetCanLightAttack(bool can) { if (States.CAN_LIGHT_ATTACK != can) States.CAN_LIGHT_ATTACK = can; };
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
-		void SetCanStrongAttack(bool can) { if(HasAuthority() && States.CAN_STRONG_ATTACK != can) States.CAN_STRONG_ATTACK = can; };
+		void SetCanStrongAttack(bool can) { if(States.CAN_STRONG_ATTACK != can) States.CAN_STRONG_ATTACK = can; };
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
-		void SetCanDash(bool can) { if (HasAuthority() && States.CAN_DASH != can) States.CAN_DASH = can; };
+		void SetCanDash(bool can) { if (States.CAN_DASH != can) States.CAN_DASH = can; };
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void StopJump();
@@ -596,9 +671,6 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
 		FVector2D AxisPosition();
-
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
-		void SpawnHitBox(FSPHitBoxDetails l_details);
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = SuperFighter)
 		void DodgeBlink(bool start);

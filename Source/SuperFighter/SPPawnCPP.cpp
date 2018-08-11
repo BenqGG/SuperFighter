@@ -64,7 +64,7 @@ ASPPawnCPP::ASPPawnCPP()
 	ClientCurrentDefence = 0.0f;
 	ClientInjuries = 0.0f;
 
-	Actions.delay = 0.0f;
+	DelayActionTime = 0.0f;
 
 	
 	States.MOVE_RIGHT = false;
@@ -463,8 +463,36 @@ void ASPPawnCPP::ManageDelay(float DeltaTime)
 	}
 }
 
+void ASPPawnCPP::StartNewAction()
+{
+	States.CAN_DASH = false;
+	States.CAN_DEFENCE = false;
+	States.CAN_JUMP = false;
+	States.CAN_LIGHT_ATTACK = false;
+	States.CAN_MOVE = false;
+	States.CAN_STRONG_ATTACK = false;
+	WorkData.DelayTimer = false;
+}
+
+void ASPPawnCPP::ResetRestrictions()
+{
+	UnBusy();
+	States.CAN_DASH = true;
+	States.CAN_DEFENCE = true;
+	States.CAN_JUMP = true;
+	States.CAN_LIGHT_ATTACK = true;
+	States.CAN_MOVE = true;
+	States.CAN_STRONG_ATTACK = true;
+}
+
 void ASPPawnCPP::DodgeBlink_Implementation(bool start)
 {
+	if (start) {
+		animation->SetSpriteColor(FLinearColor(0.2f, 0.2f, 0.2f, 1.0f));
+	}
+	else {
+		animation->SetSpriteColor(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
+	}
 }
 
 void ASPPawnCPP::DrawDefence_Implementation()
@@ -537,10 +565,6 @@ void ASPPawnCPP::SetUpIdle_Implementation()
 
 }
 
-void ASPPawnCPP::SpawnHitBox_Implementation(FSPHitBoxDetails l_details)
-{
-
-}
 
 FVector2D ASPPawnCPP::AxisPosition_Implementation()
 {
@@ -686,12 +710,12 @@ void ASPPawnCPP::Jump()
 
 void ASPPawnCPP::MakeBusy()
 {
-	if (HasAuthority() && States.BUSY != true) States.BUSY = true;
+	if (States.BUSY != true) States.BUSY = true;
 }
 
 void ASPPawnCPP::UnBusy()
 {
-	if (HasAuthority() && States.BUSY != false) States.BUSY = false;
+	if (States.BUSY != false) States.BUSY = false;
 }
 
 void ASPPawnCPP::StopJump()
@@ -1230,6 +1254,13 @@ void ASPPawnCPP::ChangeAnimation(FSPAnimationDetails details)
 	collision_box->SetBoxExtent(FVector(details.CollisionBox.X, 10, details.CollisionBox.Y), true);
 	hit_box->SetBoxExtent(FVector(details.HitBox.X, 10, details.HitBox.Y), true);
 	animation->SetFlipbook(details.Flipbook);
+	animation->PlayFromStart();
+}
+
+void ASPPawnCPP::QuickChangeAnimation(UPaperFlipbook * Flipbook, FVector2D HitBox)
+{
+	hit_box->SetBoxExtent(FVector(HitBox.X, 10, HitBox.Y), true);
+	animation->SetFlipbook(Flipbook);
 	animation->PlayFromStart();
 }
 
@@ -2089,12 +2120,12 @@ void ASPPawnCPP::StopMove()
 void ASPPawnCPP::ResetActions(float delay_delta)
 {
 	if (HasAuthority()) {
-		Actions.delay = delay_delta;
+		DelayActionTime = delay_delta;
 		WorkData.DelayTimer = false;
-		if (Actions.delay > 0.000f) {
+		if (DelayActionTime > 0.000f) {
 			WorkData.DelayTimer = true;
 			WorkData.DelayTimerDelta = 0.0f;
-			WorkData.DelayTimerGoal = Actions.delay;
+			WorkData.DelayTimerGoal = DelayActionTime;
 		}
 	}
 }
@@ -2142,11 +2173,11 @@ void ASPPawnCPP::CallDelayAction_Implementation()
 {	
 	if (HasAuthority()) {
 		if (CanDelayAction()) {
-			Actions.DelayAction.ExecuteIfBound();
+			ActionDelay.ExecuteIfBound();
 		}
 	}
 	else {
-		Actions.DelayAction.ExecuteIfBound();
+		ActionDelay.ExecuteIfBound();
 	}
 }
 
@@ -2255,7 +2286,7 @@ void ASPPawnCPP::LooseStock_Implementation()
 	ClientCurrentDefence = 0.0f;
 	ClientInjuries = 0.0f;
 
-	Actions.delay = 0.0f;
+	DelayActionTime = 0.0f;
 
 	States.MOVE_RIGHT = false;
 	States.MOVE_LEFT = false;
@@ -2353,8 +2384,7 @@ bool ASPPawnCPP::IsStun()
 
 bool ASPPawnCPP::CanMove() {
 	if (HasAuthority()) {
-		if (!IsStun() && !States.BUSY && States.CAN_MOVE && !States.DASH && !States.DEFENCE 
-			&& !States.LIGHT_ATTACK && !States.STRONG_ATTACK)
+		if (!IsStun() && !States.BUSY && States.CAN_MOVE)
 			return true;
 		else 
 			return false;
@@ -2379,7 +2409,7 @@ bool ASPPawnCPP::CanStopMove() {
 
 bool ASPPawnCPP::CanDelayAction() {
 	if (HasAuthority()) {
-		if (!IsStun()) {
+		if (!IsStun() && !States.BUSY) {
 			return true;
 		}
 		else {
@@ -2393,9 +2423,7 @@ bool ASPPawnCPP::CanDelayAction() {
 
 bool ASPPawnCPP::CanJump() { 
 	if (HasAuthority()) {
-		if (!IsStun() && !States.BUSY && States.CAN_JUMP && !States.DEFENCE && !States.DASH
-			&& !States.LIGHT_ATTACK && !States.STRONG_ATTACK && !States.JUMP &&
-			!States.JUMP_LEFT_WALL && !States.JUMP_RIGHT_WALL) {
+		if (!IsStun() && !States.BUSY && States.CAN_JUMP) {
 			if (WorkData.AirJumped < Attributes.AirJumpAmount || GroundUnderFeet()
 				|| GroundNextToFeet(true) || GroundNextToFeet(false)) {
 				return true;
@@ -2419,17 +2447,13 @@ bool ASPPawnCPP::CanStopJump() {
 		return false;
 	}
 	else {
-		if (States.JUMP || States.JUMP_LEFT_WALL || States.JUMP_RIGHT_WALL) {
-			return true;
-		}
-		return false;
+		return true;
 	}
 }
 
 bool ASPPawnCPP::CanLightAttack() { 
 	if (HasAuthority()) {
-		if (!IsStun() && !States.BUSY && States.CAN_LIGHT_ATTACK && !States.DEFENCE && !States.DASH
-			 && !States.STRONG_ATTACK)
+		if (!IsStun() && !States.BUSY && States.CAN_LIGHT_ATTACK)
 			return true; 
 		else 
 			return false;
@@ -2441,8 +2465,7 @@ bool ASPPawnCPP::CanLightAttack() {
 
 bool ASPPawnCPP::CanStrongAttack() { 
 	if (HasAuthority()) {
-		if (!IsStun() && !States.BUSY && States.CAN_STRONG_ATTACK && !States.DEFENCE && !States.DASH
-			&& !States.STRONG_ATTACK)
+		if (!IsStun() && !States.BUSY && States.CAN_STRONG_ATTACK)
 			return true;
 		else
 			return false;
@@ -2460,18 +2483,14 @@ bool ASPPawnCPP::CanReleaseStrongAttack() {
 		return false;
 	}
 	else {
-		if (States.STRONG_ATTACK) {
-			return true;
-		}
-		return false;
+		return true;
 	}
 }
 
 bool ASPPawnCPP::CanDefence() { 
 	if (HasAuthority()) {
 		//You can not defend in air
-		if (!IsStun() && !States.BUSY && States.CAN_DEFENCE && States.ON_GROUND && WorkData.CurrentDefence > 0.0f 
-			&& !States.DEFENCE && !States.DASH && !States.LIGHT_ATTACK && !States.STRONG_ATTACK) {
+		if (!IsStun() && !States.BUSY && States.CAN_DEFENCE && WorkData.CurrentDefence > 0.0f ) {
 			return true;
 		}
 		else 
@@ -2490,18 +2509,14 @@ bool ASPPawnCPP::CanReleaseDefence() {
 		return false;
 	}
 	else {
-		if (States.DEFENCE) {
-			return true;
-		}
-		return false;
+		return true;
 	}
 }
 
 bool ASPPawnCPP::CanDash()
 {
 	if (HasAuthority()) {
-		if (!IsStun() && !States.BUSY && States.CAN_DASH && !States.DASH && !States.LIGHT_ATTACK 
-			&& !States.STRONG_ATTACK && !States.DEFENCE) {
+		if (!IsStun() && !States.BUSY && States.CAN_DASH) {
 			return true;
 		}
 		else
