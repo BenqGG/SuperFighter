@@ -109,6 +109,12 @@ struct FSPAnimationDetails {
 		FVector2D CollisionBox;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+		FVector2D FlipbookRelativeLocation;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+		FVector2D HitBoxRelativeLocation;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 		UPaperFlipbook *Flipbook;
 };
 
@@ -376,7 +382,10 @@ protected:
 		void ChangeAnimation(FSPAnimationDetails details);
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
-		void QuickChangeAnimation(UPaperFlipbook *Flipbook, FVector2D HitBo);
+		void QuickChangeAnimation(UPaperFlipbook *Flipbook, FVector2D HitBox);
+	
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void ChangeAnimationWithLocation(UPaperFlipbook *Flipbook, FVector2D HitBox, FVector2D RelativeLocation);
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void ChangeMovementSpeed(float speed);
