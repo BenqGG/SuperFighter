@@ -61,6 +61,9 @@ ASPPawnCPP::ASPPawnCPP()
 	WorkData.DelayTimerDelta = 0.0f;
 	WorkData.DelayTimerGoal = 0.0f;
 
+	WorkData.JumpStart = false;
+	WorkData.YUp = true;
+
 	ClientCurrentDefence = 0.0f;
 	ClientInjuries = 0.0f;
 
@@ -139,6 +142,7 @@ void ASPPawnCPP::Tick(float DeltaTime)
 		UpdateTimers(DeltaTime);
 		if(GetController() == UGameplayStatics::GetPlayerController(GetWorld(), 0))
 		CheckKeyStates();
+		CheckYDirection();
 
 		if (States.DEFENCE) {
 			DrawDefence();
@@ -155,6 +159,7 @@ void ASPPawnCPP::Tick(float DeltaTime)
 		UpdateTimers(DeltaTime);
 		if (GetController() == UGameplayStatics::GetPlayerController(GetWorld(), 0))
 		CheckKeyStates();
+		CheckYDirection();
 
 		if (States.DEFENCE) {
 			DrawDefence();
@@ -745,6 +750,7 @@ void ASPPawnCPP::StopJump()
 			}
 			
 			WorkData.JumpTimer = false;
+			WorkData.JumpStart = false;
 	}
 }
 
@@ -1262,6 +1268,7 @@ void ASPPawnCPP::ChangeAnimation(FSPAnimationDetails details)
 		animation->SetRelativeLocation(FVector(details.FlipbookRelativeLocation.X*-1.0f, 0.0f, details.FlipbookRelativeLocation.Y));
 	}
 	animation->PlayFromStart();
+	animation->OnFinishedPlaying.Clear();
 }
 
 void ASPPawnCPP::QuickChangeAnimation(UPaperFlipbook * Flipbook, FVector2D HitBox)
@@ -1804,17 +1811,17 @@ void ASPPawnCPP::CalculateMovement(float DeltaTime)
 			}
 		}
 
-		if (States.JUMP) {
+		if (States.JUMP && WorkData.JumpStart) {
 			Forces.Y = Attributes.JumpPower;
 		}
-		else if (States.JUMP_LEFT_WALL) {
+		else if (States.JUMP_LEFT_WALL && WorkData.JumpStart) {
 
 			Forces.Y = Attributes.JumpPower / StaticAttributes.WallJumpYModifier;
 			if (Forces.X < Attributes.JumpPower / StaticAttributes.WallJumpXModifier) {
 				Forces.X = Attributes.JumpPower / StaticAttributes.WallJumpXModifier;
 			}
 		}
-		else if (States.JUMP_RIGHT_WALL) {
+		else if (States.JUMP_RIGHT_WALL && WorkData.JumpStart) {
 
 			Forces.Y = Attributes.JumpPower / StaticAttributes.WallJumpYModifier;
 			if (Forces.X > -Attributes.JumpPower / StaticAttributes.WallJumpXModifier) {
@@ -2539,6 +2546,22 @@ bool ASPPawnCPP::CanDash()
 	}
 	else {
 		return true;
+	}
+}
+
+void ASPPawnCPP::CheckYDirection()
+{
+	if (Forces.Y > 0.0f) {
+		if (!WorkData.YUp) {
+			WorkData.YUp = true;
+			ActionYDirectionChange.ExecuteIfBound();
+		}
+	}
+	else if(Forces.Y < 0.0f){
+		if (WorkData.YUp) {
+			WorkData.YUp = false;
+			ActionYDirectionChange.ExecuteIfBound();
+		}
 	}
 }
 

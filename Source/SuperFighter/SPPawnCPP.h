@@ -307,6 +307,11 @@ struct FSPWorkData {
 		bool DelayTimer;
 		float DelayTimerDelta;
 		float DelayTimerGoal;
+
+		//So we can run pre-jump animation
+		bool JumpStart;
+
+		bool YUp;
 };
 
 USTRUCT(BlueprintType)
@@ -500,6 +505,10 @@ protected:
 		FActionFunction ActionAirUpperStrongAttack;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		FActionFunction ActionAirDownStrongAttack;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		//When Y Forces Goes from + to - (or from 0 to + or from 0 to -)
+		FActionFunction ActionYDirectionChange;
 	//END ACTIONS -----------------------------------------------------
 
 public:
@@ -772,6 +781,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		float CurrentHitStun();
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		//Called after pre-jump animation is done
+		void StartJump() {
+		WorkData.JumpStart = true;
+	};
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		int Injuries() {
@@ -1079,4 +1094,6 @@ public:
 		void LeftKeyUp() { KeyStates.LEFT_KEY = false; KeyTimers.FireLeftUp = false; };
 		void LeftKeyDown() { KeyStates.LEFT_KEY = true; KeyTimers.FireLeftDown = false;
 		};
+
+		void CheckYDirection();
 };
