@@ -554,7 +554,10 @@ public:
 		void SetCanStrongAttack(bool can) { if(States.CAN_STRONG_ATTACK != can) States.CAN_STRONG_ATTACK = can; };
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
-		void SetCanDash(bool can) { if (States.CAN_DASH != can) States.CAN_DASH = can; };
+		void SetCanDash(bool can) { if (!WorkData.DashTimer && States.CAN_DASH != can) States.CAN_DASH = can; };
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		void SetCanDefence(bool can) { if (States.CAN_DEFENCE != can) States.CAN_DEFENCE = can; };
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void StopJump();

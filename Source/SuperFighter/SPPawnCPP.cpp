@@ -554,7 +554,7 @@ void ASPPawnCPP::HitPosition(FVector2D AxisPosition, FVector& Position, FVector&
 
 void ASPPawnCPP::ChangeAnimationRotation_Implementation()
 {
-	FRotator rotation(0.0f, 0.0f, 0.0f);
+	/*FRotator rotation(0.0f, 0.0f, 0.0f);
 	if(WorkData.FacingRight)
 	{
 		animation->SetRelativeRotation(rotation, false);
@@ -562,7 +562,7 @@ void ASPPawnCPP::ChangeAnimationRotation_Implementation()
 	else {
 		rotation = FRotator(0.0f, 180.0f,0.0f);
 		animation->SetRelativeRotation(rotation, false);
-	}
+	}*/
 }
 
 void ASPPawnCPP::SetUpIdle_Implementation()
@@ -2098,6 +2098,7 @@ void ASPPawnCPP::Move(bool right)
 					FRotator rotation(0.0f, 0.0f, 0.0f);
 					WorkData.FacingRight = true;
 					animation->SetRelativeRotation(rotation, false);
+					animation->SetRelativeLocation(FVector(animation->RelativeLocation.X*-1.0f, 0.0f, animation->RelativeLocation.Z));
 				}
 				if (HasAuthority()) {
 					Client_Move(GetSendPosition(), 0);
@@ -2110,6 +2111,7 @@ void ASPPawnCPP::Move(bool right)
 					FRotator rotation(0.0f, 180.0f, 0.0f);
 					WorkData.FacingRight = false;
 					animation->SetRelativeRotation(rotation, false);
+					animation->SetRelativeLocation(FVector(animation->RelativeLocation.X*-1.0f, 0.0f, animation->RelativeLocation.Z));
 				}
 				if (HasAuthority()) {
 					Client_Move(GetSendPosition(), 1);
@@ -2275,6 +2277,9 @@ void ASPPawnCPP::LooseStock_Implementation()
 	WorkData.AirJumped = 0;
 
 	WorkData.FacingRight = true;
+	FRotator rotation(0.0f, 0.0f, 0.0f);
+	animation->SetRelativeRotation(rotation, false);
+	animation->SetRelativeLocation(FVector(animation->RelativeLocation.X*-1.0f, 0.0f, animation->RelativeLocation.Z));
 	WorkData.Injuries = 0;
 	WorkData.StrongAttackMeter = 0;
 	WorkData.HitStun = 0.0f;
