@@ -1678,13 +1678,13 @@ void ASPPawnCPP::StartLightAttack(float time)
 void ASPPawnCPP::EndLightAttack()
 {
 		if (States.LIGHT_ATTACK) States.LIGHT_ATTACK = false;
-
+		/*
 		if (!States.CAN_MOVE)			States.CAN_MOVE = true;
 		if (!States.CAN_JUMP)			States.CAN_JUMP = true;
 		if (!States.CAN_DEFENCE)		States.CAN_DEFENCE = true;
 		if (!States.CAN_DASH)			States.CAN_DASH = true;
 		if (!States.CAN_STRONG_ATTACK)	States.CAN_STRONG_ATTACK = true;
-		if (!States.CAN_LIGHT_ATTACK)	States.CAN_LIGHT_ATTACK = true;
+		if (!States.CAN_LIGHT_ATTACK)	States.CAN_LIGHT_ATTACK = true;*/
 		
 		WorkData.LightAttackTimer = false;
 }
@@ -1751,7 +1751,13 @@ void ASPPawnCPP::ApplyForces(float DeltaTime)
 			current_location = GetActorLocation();
 			current_location.X += Forces.X * (DeltaTime / 1.0f);
 			if (!SetActorLocation(current_location, true, nullptr)) {
-				Forces.X = 0.0f;
+				if (IsStun()) {
+					Forces.X = -Forces.X;
+				}
+				else {
+					Forces.X = 0.0f;
+				}
+				
 			}
 		}
 		if (Forces.Y != 0.0f) {
@@ -1761,7 +1767,12 @@ void ASPPawnCPP::ApplyForces(float DeltaTime)
 				if (Forces.Y < 0) { 
 					WorkData.AirJumped = 0;
 				}
-				Forces.Y = 0.0f;
+				if (IsStun()) {
+					Forces.Y = -Forces.Y;
+				}
+				else {
+					Forces.Y = 0.0f;
+				}
 			}
 		}	
 
@@ -2517,7 +2528,7 @@ bool ASPPawnCPP::CanReleaseStrongAttack() {
 bool ASPPawnCPP::CanDefence() { 
 	if (HasAuthority()) {
 		//You can not defend in air
-		if (!IsStun() && !States.BUSY && States.CAN_DEFENCE && WorkData.CurrentDefence > 0.0f ) {
+		if (!IsStun() && !States.BUSY && States.CAN_DEFENCE && WorkData.CurrentDefence > 0.0f && States.ON_GROUND ) {
 			return true;
 		}
 		else 
