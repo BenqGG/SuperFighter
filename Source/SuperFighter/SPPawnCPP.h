@@ -356,6 +356,8 @@ protected:
 
 	UPROPERTY(ReplicatedUsing = RepNot_UpdatePosition, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		FVector ClientPosition;
+	UPROPERTY(ReplicatedUsing = RepNot_UpdateForces, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		FVector2D ClientForces;
 
 	UPROPERTY(ReplicatedUsing = RepNot_UpdateCurrentDefence, EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		float ClientCurrentDefence;
@@ -659,6 +661,8 @@ public:
 
 	UFUNCTION()
 	void RepNot_UpdatePosition();
+	UFUNCTION()
+		void RepNot_UpdateForces();
 	UFUNCTION()
 	void RepNot_UpdateCurrentDefence();
 	UFUNCTION()
@@ -1034,7 +1038,7 @@ public:
 					PingDelta /= 1000.0f;
 				}
 			}
-
+			GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Yellow, FString::SanitizeFloat(PingDelta));
 			if (state) {
 				GetWorldTimerManager().SetTimer(KeyTimers.DefenceKeyDown, this, &ASPPawnCPP::DefenceKeyDown, PingDelta, false);
 			}

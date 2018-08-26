@@ -21,6 +21,7 @@ ASPPawnCPP::ASPPawnCPP()
 	Forces.X = 0.0f;
 	Forces.Y = 0.0f;
 	ClientPosition = GetActorLocation();
+	ClientForces = Forces;
 
 	StaticAttributes.MovementScale = 10.0f;
 	StaticAttributes.AirMovementScale = 4.0f;
@@ -149,6 +150,7 @@ void ASPPawnCPP::Tick(float DeltaTime)
 		}
 		if (Forces.X != 0.0f || Forces.Y != 0.0f) {
 			ClientPosition = GetActorLocation();
+			ClientForces = Forces;
 		}
 	}
 	else {
@@ -251,7 +253,14 @@ void ASPPawnCPP::RepNot_UpdatePosition()
 	}
 }
 
-
+void ASPPawnCPP::RepNot_UpdateForces()
+{
+	if (!HasAuthority()) {
+		if (!States.DASH) {
+			Forces = ClientForces;
+		}
+	}
+}
 
 
 
@@ -635,6 +644,7 @@ void ASPPawnCPP::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifeti
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	//Here we list the variables we want to replicate + a condition if wanted
 	DOREPLIFETIME(ASPPawnCPP, ClientPosition);
+	DOREPLIFETIME(ASPPawnCPP, ClientForces);
 	DOREPLIFETIME(ASPPawnCPP, Attributes);
 	DOREPLIFETIME(ASPPawnCPP, StaticAttributes);
 	DOREPLIFETIME(ASPPawnCPP, ClientCurrentDefence);
@@ -1751,7 +1761,7 @@ void ASPPawnCPP::ApplyForces(float DeltaTime)
 			current_location = GetActorLocation();
 			current_location.X += Forces.X * (DeltaTime / 1.0f);
 			if (!SetActorLocation(current_location, true, nullptr)) {
-				if (IsStun()) {
+				if (IsStun() && (Forces.X > 200.0f || Forces.X < -200.0f)) {
 					Forces.X = -Forces.X;
 				}
 				else {
@@ -1767,7 +1777,7 @@ void ASPPawnCPP::ApplyForces(float DeltaTime)
 				if (Forces.Y < 0) { 
 					WorkData.AirJumped = 0;
 				}
-				if (IsStun()) {
+				if (IsStun() && (Forces.Y > 200.0f || Forces.Y < -200.0f)) {
 					Forces.Y = -Forces.Y;
 				}
 				else {
