@@ -136,6 +136,8 @@ struct FSPPawnAttributes {
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		float Gravity = 0;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		float MaxGravity = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		//How much percent are injures lowered
 		float Tenacity = 0;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
@@ -225,6 +227,9 @@ struct FSPPawnStates {
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
 		bool SPOT_DODGE = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SuperFighter)
+		bool GRAVITY = false;
 };
 
 USTRUCT(BlueprintType)
@@ -547,7 +552,12 @@ public:
 		void SetCanJump(bool can) { if (States.CAN_JUMP != can) States.CAN_JUMP = can; };
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
-		void SetCanMove(bool can) { if (States.CAN_MOVE != can) States.CAN_MOVE = can; };
+		void SetCanMove(bool can) {
+		if (States.CAN_MOVE != can) {
+			States.CAN_MOVE = can;
+			GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, "HERE3");
+		}
+	};
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		void SetCanLightAttack(bool can) { if (States.CAN_LIGHT_ATTACK != can) States.CAN_LIGHT_ATTACK = can; };
@@ -779,6 +789,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 	bool FacingRight();
+
+	UFUNCTION(BlueprintCallable, Category = SuperFighter)
+		bool Gravity() { if (States.GRAVITY && Forces.Y > Attributes.MaxGravity) return true; return false; };
 
 	UFUNCTION(BlueprintCallable, Category = SuperFighter)
 		float StrongAttackMeter();
@@ -1038,7 +1051,6 @@ public:
 					PingDelta /= 1000.0f;
 				}
 			}
-			GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Yellow, FString::SanitizeFloat(PingDelta));
 			if (state) {
 				GetWorldTimerManager().SetTimer(KeyTimers.DefenceKeyDown, this, &ASPPawnCPP::DefenceKeyDown, PingDelta, false);
 			}
@@ -1103,4 +1115,6 @@ public:
 		};
 
 		void CheckYDirection();
+
+		void SetGravity(bool gravity) { if (States.GRAVITY != gravity) States.GRAVITY = gravity; };
 };
